@@ -1,6 +1,7 @@
 package com.university.skillshare_backend.service;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -48,8 +49,8 @@ public class CommentService {
         postRepository.findById(postId)
             .orElseThrow(() -> new ResourceNotFoundException("Post", "id", postId));
         
-        // Verify user exists
-        userRepository.findById(userId)
+        // Verify user exists and get user data
+        User user = userRepository.findById(userId)
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
         
         // Parse mentions
@@ -57,13 +58,18 @@ public class CommentService {
         
         // Create and save the comment
         Comment comment = new Comment(postId, userId, text);
+        // Set animation flags
+        comment.setIsNew(true);
+        // Set author name from user
+        comment.setAuthorName(user.getFullName() != null && !user.getFullName().isEmpty() 
+            ? user.getFullName() : user.getUsername());
+            
         Comment savedComment = commentRepository.save(comment);
         
         // Handle mentions and notifications
         processMentions(mentions, savedComment);
         
         // Only broadcast via WebSocket if this isn't a direct API call
-        // This prevents duplicate comments on the client
         if (!isDirectApiCall) {
             webSocketService.broadcastNewComment(postId, savedComment);
         }
@@ -78,11 +84,6 @@ public class CommentService {
     
     /**
      * Edit a comment
-     * 
-     * @param commentId The comment ID
-     * @param userId The user ID (to verify ownership)
-     * @param text The updated comment text
-     * @return The updated comment
      */
     public Comment editComment(String commentId, String userId, String text) {
         // Fetch and verify comment exists
@@ -101,6 +102,12 @@ public class CommentService {
         comment.setText(text);
         Comment updatedComment = commentRepository.save(comment);
         
+        // Set the author name for the updated comment
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+        updatedComment.setAuthorName(user.getFullName() != null && !user.getFullName().isEmpty() 
+            ? user.getFullName() : user.getUsername());
+        
         // Handle mentions (could send notifications here)
         processMentions(mentions, updatedComment);
         
@@ -112,9 +119,6 @@ public class CommentService {
     
     /**
      * Delete a comment
-     * 
-     * @param commentId The comment ID
-     * @param userId The user ID (to verify ownership)
      */
     public void deleteComment(String commentId, String userId) {
         // Fetch and verify comment exists
@@ -136,23 +140,27 @@ public class CommentService {
     
     /**
      * Get all comments for a post
-     * 
-     * @param postId The post ID
-     * @return List of comments
      */
     public List<Comment> getCommentsByPostId(String postId) {
         // Verify post exists
         postRepository.findById(postId)
             .orElseThrow(() -> new ResourceNotFoundException("Post", "id", postId));
         
-        return commentRepository.findByPostId(postId);
+        // Get all comments for the post
+        List<Comment> comments = commentRepository.findByPostId(postId);
+        
+        // Populate author names for each comment
+        return comments.stream().map(comment -> {
+            userRepository.findById(comment.getUserId()).ifPresent(user -> {
+                comment.setAuthorName(user.getFullName() != null && !user.getFullName().isEmpty() 
+                    ? user.getFullName() : user.getUsername());
+            });
+            return comment;
+        }).collect(Collectors.toList());
     }
     
     /**
      * Process mentions in a comment
-     * 
-     * @param mentions List of usernames mentioned
-     * @param comment The comment containing mentions
      */
     private void processMentions(List<String> mentions, Comment comment) {
         if (mentions == null || mentions.isEmpty()) {

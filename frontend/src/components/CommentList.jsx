@@ -5,12 +5,22 @@ import useWebSocket from '../hooks/useWebSocket';
 
 const CommentList = forwardRef(({ postId, userId, initialComments = [] }, ref) => {
   const [loading, setLoading] = useState(false);
+  const [lastAddedCommentId, setLastAddedCommentId] = useState(null);
   const { comments, setComments } = useWebSocket(postId, initialComments);
+  const [animatingOutId, setAnimatingOutId] = useState(null);
 
   // Expose methods to parent component
   useImperativeHandle(ref, () => ({
     addComment: (newComment) => {
-      setComments(prev => [...prev, newComment]);
+      setLastAddedCommentId(newComment.id);
+      setComments(prev => [...prev, {...newComment, isNew: true}]);
+      
+      // Clear the "new" flag after some time
+      setTimeout(() => {
+        setComments(prev => prev.map(comment => 
+          comment.id === newComment.id ? {...comment, isNew: false} : comment
+        ));
+      }, 3000);
     }
   }));
 
@@ -22,7 +32,7 @@ const CommentList = forwardRef(({ postId, userId, initialComments = [] }, ref) =
       setLoading(true);
       try {
         const data = await getComments(postId);
-        setComments(data); // Update with fetched comments
+        setComments(data);
       } catch (error) {
         console.error('Error fetching comments:', error);
       } finally {
@@ -33,46 +43,87 @@ const CommentList = forwardRef(({ postId, userId, initialComments = [] }, ref) =
     fetchComments();
   }, [postId]);
 
-  // Handle comment deletion
+  // Handle comment deletion with animation
   const handleDelete = (commentId) => {
-    setComments(prev => prev.filter(comment => comment.id !== commentId));
+    // Start deletion animation
+    setAnimatingOutId(commentId);
+    
+    // Remove comment after animation completes
+    setTimeout(() => {
+      setComments(prev => prev.filter(comment => comment.id !== commentId));
+      setAnimatingOutId(null);
+    }, 500);
   };
   
   // Handle comment update
   const handleUpdate = (updatedComment) => {
     setComments(prev => prev.map(comment => 
-      comment.id === updatedComment.id ? updatedComment : comment
+      comment.id === updatedComment.id ? {...updatedComment, isUpdated: true} : comment
     ));
+    
+    // Clear the "updated" flag after some time
+    setTimeout(() => {
+      setComments(prev => prev.map(comment => 
+        comment.id === updatedComment.id ? {...comment, isUpdated: false} : comment
+      ));
+    }, 2000);
   };
-  
-  // Add a new comment to the list
-  const addComment = (newComment) => {
-    setComments(prev => [...prev, newComment]);
-  };
-  
+
   if (loading) {
-    return <div className="mt-4 text-sm text-gray-500">Loading comments...</div>;
+    return (
+      <div className="mt-4 flex justify-center">
+        <div className="animate-pulse flex space-x-4">
+          <div className="rounded-full bg-gray-300 h-10 w-10"></div>
+          <div className="flex-1 space-y-2 py-1">
+            <div className="h-4 bg-gray-300 rounded w-3/4"></div>
+            <div className="h-4 bg-gray-300 rounded w-1/2"></div>
+          </div>
+        </div>
+      </div>
+    );
   }
   
   return (
-    <div className="mt-4 space-y-3">
-      <h3 className="font-medium text-gray-700">
-        {comments.length} {comments.length === 1 ? 'Comment' : 'Comments'}
+    <div className="mt-6 space-y-4">
+      <h3 className="font-medium text-gray-800 flex items-center">
+        <span className="mr-2">
+          {comments.length} {comments.length === 1 ? 'Comment' : 'Comments'}
+        </span>
+        {comments.length > 0 && (
+          <span className="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">
+            {comments.length}
+          </span>
+        )}
       </h3>
       
-      {comments.length === 0 ? (
-        <p className="text-sm text-gray-500">No comments yet. Be the first to comment!</p>
-      ) : (
-        comments.map(comment => (
-          <CommentItem
-            key={comment.id}
-            comment={comment}
-            userId={userId}
-            onDelete={handleDelete}
-            onUpdate={handleUpdate}
-          />
-        ))
-      )}
+      <div className="space-y-3">
+        {comments.length === 0 ? (
+          <p className="text-sm text-gray-500 p-4 border border-dashed border-gray-300 rounded-lg text-center fade-in">
+            No comments yet. Be the first to comment!
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {comments.map(comment => (
+              <div
+                key={comment.id}
+                className={`
+                  transition-all duration-500 ease-in-out
+                  ${comment.id === lastAddedCommentId ? 'animate-slide-in' : ''}
+                  ${animatingOutId === comment.id ? 'animate-slide-out opacity-0 transform translate-x-full' : ''}
+                `}
+              >
+                <CommentItem
+                  comment={comment}
+                  userId={userId}
+                  onDelete={handleDelete}
+                  onUpdate={handleUpdate}
+                  isNew={comment.isNew || comment.id === lastAddedCommentId}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 });
