@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import axios from 'axios';
 import { useUser } from '../contexts/UserContext';
-
+ 
 const PostForm = ({ onPostCreated }) => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
