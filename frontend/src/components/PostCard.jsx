@@ -122,7 +122,8 @@ const PostCard = ({ post, userId, detailed = false }) => {
           <CommentList 
             ref={commentListRef}
             postId={post.id} 
-            userId={userId} 
+            userId={userId}
+            postOwnerId={post.userId}
             initialComments={wsComments}
           />
         </div>

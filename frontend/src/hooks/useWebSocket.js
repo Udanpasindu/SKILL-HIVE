@@ -63,6 +63,10 @@ export const useWebSocket = (postId, initialComments = []) => {
     setComments,
     addLocalComment: (commentId) => {
       locallyAddedComments.current.add(commentId);
+      // Mark the comment as new for animation
+      setComments(prev => prev.map(c => 
+        c.id === commentId ? {...c, isNew: true} : c
+      ));
     }
   };
 };
