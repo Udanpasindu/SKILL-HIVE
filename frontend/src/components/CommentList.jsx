@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { getComments } from '../services/api';
 import CommentItem from './CommentItem';
+import useWebSocket from '../hooks/useWebSocket';
 
 const CommentList = ({ postId, userId, initialComments = [] }) => {
-  const [comments, setComments] = useState(initialComments);
   const [loading, setLoading] = useState(false);
-  
-  // Fetch comments when the component mounts
+  const { comments, setComments } = useWebSocket(postId, initialComments);
+
+  // Initial fetch of comments
   useEffect(() => {
     const fetchComments = async () => {
       if (!postId) return;
@@ -14,7 +15,7 @@ const CommentList = ({ postId, userId, initialComments = [] }) => {
       setLoading(true);
       try {
         const data = await getComments(postId);
-        setComments(data);
+        setComments(data); // Update with fetched comments
       } catch (error) {
         console.error('Error fetching comments:', error);
       } finally {
@@ -24,7 +25,7 @@ const CommentList = ({ postId, userId, initialComments = [] }) => {
     
     fetchComments();
   }, [postId]);
-  
+
   // Handle comment deletion
   const handleDelete = (commentId) => {
     setComments(prev => prev.filter(comment => comment.id !== commentId));

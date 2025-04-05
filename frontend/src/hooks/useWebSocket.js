@@ -5,53 +5,52 @@ import { connectWebSocket } from '../services/websocket';
  * Custom hook for WebSocket connections to monitor a post
  * 
  * @param {string} postId - The post ID to monitor
+ * @param {array} initialComments - Initial comments to set
  * @returns {object} - State values for likes and comments
  */
-export const useWebSocket = (postId) => {
+export const useWebSocket = (postId, initialComments = []) => {
   const [likeCount, setLikeCount] = useState(0);
-  const [comments, setComments] = useState([]);
+  const [comments, setComments] = useState(initialComments);
 
   useEffect(() => {
     if (!postId) return;
     
-    // Define callback handlers
     const callbacks = {
-      // Handle like updates
       onLikeUpdate: (data) => {
         setLikeCount(data.likeCount);
       },
       
-      // Handle new comments
-      onNewComment: (newComment) => {
-        setComments(prevComments => [...prevComments, newComment]);
+      onNewComment: (comment) => {
+        setComments(prev => {
+          // Check if comment already exists to avoid duplicates
+          if (!prev.some(c => c.id === comment.id)) {
+            return [...prev, comment];
+          }
+          return prev;
+        });
       },
       
-      // Handle comment updates (edit/delete)
       onCommentUpdate: (update) => {
         if (update.deleted) {
-          // Handle comment deletion
-          setComments(prevComments => 
-            prevComments.filter(comment => comment.id !== update.deleted)
-          );
+          setComments(prev => prev.filter(c => c.id !== update.deleted));
         } else {
-          // Handle comment edit
-          setComments(prevComments => 
-            prevComments.map(comment => 
-              comment.id === update.id ? update : comment
-            )
-          );
+          setComments(prev => prev.map(c => c.id === update.id ? update : c));
         }
       }
     };
     
-    // Connect to WebSocket
     const disconnect = connectWebSocket(postId, callbacks);
-    
-    // Cleanup on unmount
     return disconnect;
   }, [postId]);
   
-  return { likeCount, comments };
+  // Add effect to sync with initial comments
+  useEffect(() => {
+    if (initialComments && initialComments.length > 0) {
+      setComments(initialComments);
+    }
+  }, [initialComments]);
+
+  return { likeCount, comments, setComments };
 };
 
 export default useWebSocket;

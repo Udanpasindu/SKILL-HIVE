@@ -1,15 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { addComment, editComment } from '../services/api';
 import MentionInput from './MentionInput';
 
-const CommentForm = ({ postId, userId, onCommentAdded, commentId, initialText, isEditing, onCancelEdit }) => {
+const CommentForm = ({ postId, userId, commentId, initialText, isEditing, onCancelEdit }) => {
   const [text, setText] = useState(initialText || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Reset form when initialText changes (for editing)
-  useEffect(() => {
-    setText(initialText || '');
-  }, [initialText]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -19,23 +14,16 @@ const CommentForm = ({ postId, userId, onCommentAdded, commentId, initialText, i
     setIsSubmitting(true);
     
     try {
-      let response;
-      
       if (commentId && isEditing) {
-        // Edit existing comment
-        response = await editComment(commentId, userId, text);
+        await editComment(commentId, userId, text);
         if (onCancelEdit) onCancelEdit();
       } else {
-        // Add new comment
-        response = await addComment(postId, userId, text);
-        setText(''); // Clear form after adding
-      }
-      
-      if (onCommentAdded) {
-        onCommentAdded(response);
+        await addComment(postId, userId, text);
+        setText(''); // Clear form after successful submission
       }
     } catch (error) {
       console.error('Error submitting comment:', error);
+      alert('Failed to submit comment. Please try again.');
     } finally {
       setIsSubmitting(false);
     }

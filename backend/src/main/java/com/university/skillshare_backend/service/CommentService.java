@@ -64,7 +64,7 @@ public class CommentService {
         Comment comment = new Comment(postId, userId, text);
         Comment savedComment = commentRepository.save(comment);
         
-        // Handle mentions (could send notifications here)
+        // Handle mentions and notifications
         processMentions(mentions, savedComment);
         
         // Broadcast the new comment via WebSocket
