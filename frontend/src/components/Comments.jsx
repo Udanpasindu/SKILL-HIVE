@@ -2,7 +2,7 @@ import { useRef } from 'react';
 import CommentForm from './CommentForm';
 import CommentList from './CommentList';
 
-const Comments = ({ postId, userId, initialComments = [] }) => {
+const Comments = ({ postId, userId, postOwnerId, initialComments = [] }) => {
   const commentListRef = useRef();
   
   const handleCommentAdded = (newComment) => {
@@ -21,7 +21,8 @@ const Comments = ({ postId, userId, initialComments = [] }) => {
       <CommentList 
         ref={commentListRef}
         postId={postId} 
-        userId={userId} 
+        userId={userId}
+        postOwnerId={postOwnerId}
         initialComments={initialComments} 
       />
     </div>
