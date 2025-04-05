@@ -42,13 +42,8 @@ public class CommentService {
     
     /**
      * Add a comment to a post
-     * 
-     * @param postId The post ID
-     * @param userId The user ID
-     * @param text The comment text
-     * @return The saved comment
      */
-    public Comment addComment(String postId, String userId, String text) {
+    public Comment addComment(String postId, String userId, String text, boolean isDirectApiCall) {
         // Verify post exists
         postRepository.findById(postId)
             .orElseThrow(() -> new ResourceNotFoundException("Post", "id", postId));
@@ -67,10 +62,18 @@ public class CommentService {
         // Handle mentions and notifications
         processMentions(mentions, savedComment);
         
-        // Broadcast the new comment via WebSocket
-        webSocketService.broadcastNewComment(postId, savedComment);
+        // Only broadcast via WebSocket if this isn't a direct API call
+        // This prevents duplicate comments on the client
+        if (!isDirectApiCall) {
+            webSocketService.broadcastNewComment(postId, savedComment);
+        }
         
         return savedComment;
+    }
+
+    // Add overloaded method for backward compatibility
+    public Comment addComment(String postId, String userId, String text) {
+        return addComment(postId, userId, text, false);
     }
     
     /**

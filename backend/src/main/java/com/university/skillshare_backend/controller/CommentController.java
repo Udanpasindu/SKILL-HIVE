@@ -46,7 +46,10 @@ public class CommentController {
             @RequestBody Map<String, String> commentRequest) {
         
         String commentText = commentRequest.get("text");
-        Comment newComment = commentService.addComment(postId, userId, commentText);
+        // Pass an additional parameter to indicate this is a direct API call
+        // so we can handle WebSocket broadcasting differently
+        boolean isDirectApiCall = true;
+        Comment newComment = commentService.addComment(postId, userId, commentText, isDirectApiCall);
         
         return new ResponseEntity<>(newComment, HttpStatus.CREATED);
     }

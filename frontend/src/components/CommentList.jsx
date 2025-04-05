@@ -1,11 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { getComments } from '../services/api';
 import CommentItem from './CommentItem';
 import useWebSocket from '../hooks/useWebSocket';
 
-const CommentList = ({ postId, userId, initialComments = [] }) => {
+const CommentList = forwardRef(({ postId, userId, initialComments = [] }, ref) => {
   const [loading, setLoading] = useState(false);
   const { comments, setComments } = useWebSocket(postId, initialComments);
+
+  // Expose methods to parent component
+  useImperativeHandle(ref, () => ({
+    addComment: (newComment) => {
+      setComments(prev => [...prev, newComment]);
+    }
+  }));
 
   // Initial fetch of comments
   useEffect(() => {
@@ -68,6 +75,6 @@ const CommentList = ({ postId, userId, initialComments = [] }) => {
       )}
     </div>
   );
-};
+});
 
 export default CommentList;

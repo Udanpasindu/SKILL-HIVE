@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { addComment, editComment } from '../services/api';
 import MentionInput from './MentionInput';
 
-const CommentForm = ({ postId, userId, commentId, initialText, isEditing, onCancelEdit }) => {
+const CommentForm = ({ postId, userId, commentId, initialText, isEditing, onCancelEdit, onCommentAdded }) => {
   const [text, setText] = useState(initialText || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -12,18 +13,25 @@ const CommentForm = ({ postId, userId, commentId, initialText, isEditing, onCanc
     if (!text.trim() || !userId || isSubmitting) return;
     
     setIsSubmitting(true);
+    setErrorMessage('');
     
     try {
+      let result;
       if (commentId && isEditing) {
-        await editComment(commentId, userId, text);
+        result = await editComment(commentId, userId, text);
         if (onCancelEdit) onCancelEdit();
       } else {
-        await addComment(postId, userId, text);
+        result = await addComment(postId, userId, text);
         setText(''); // Clear form after successful submission
+      }
+      
+      // Notify parent component about the new/updated comment
+      if (onCommentAdded && result) {
+        onCommentAdded(result);
       }
     } catch (error) {
       console.error('Error submitting comment:', error);
-      alert('Failed to submit comment. Please try again.');
+      setErrorMessage('Failed to submit comment. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -45,6 +53,10 @@ const CommentForm = ({ postId, userId, commentId, initialText, isEditing, onCanc
           disabled={isSubmitting || !userId}
         />
         
+        {errorMessage && (
+          <p className="text-sm text-red-500">{errorMessage}</p>
+        )}
+        
         <div className="flex justify-end space-x-2">
           {isEditing && (
             <button
@@ -64,7 +76,7 @@ const CommentForm = ({ postId, userId, commentId, initialText, isEditing, onCanc
                 : 'hover:bg-blue-600'
             }`}
           >
-            {isEditing ? 'Update' : 'Comment'}
+            {isSubmitting ? 'Submitting...' : isEditing ? 'Update' : 'Comment'}
           </button>
         </div>
       </div>

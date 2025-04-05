@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import LikeButton from './LikeButton';
 import CommentList from './CommentList';
@@ -11,10 +11,12 @@ const PostCard = ({ post, userId, detailed = false }) => {
   const [showComments, setShowComments] = useState(detailed);
   
   // Use WebSocket for real-time updates
-  const { likeCount: wsLikeCount, comments: wsComments } = useWebSocket(post.id);
+  const { likeCount: wsLikeCount, comments: wsComments, addLocalComment } = useWebSocket(post.id);
   
   // Local state for likes and comments
   const [localLikeCount, setLocalLikeCount] = useState(post.likeCount || 0);
+  
+  const commentListRef = useRef();
   
   // Update like count from WebSocket
   useEffect(() => {
@@ -41,8 +43,15 @@ const PostCard = ({ post, userId, detailed = false }) => {
   
   // Handle new comment added
   const handleCommentAdded = (newComment) => {
-    // WebSocket will handle updating comments
     console.log('Comment added:', newComment);
+    // Register this comment as locally added to prevent duplication from WebSocket
+    if (newComment && newComment.id) {
+      addLocalComment(newComment.id);
+    }
+    
+    if (commentListRef && commentListRef.current) {
+      commentListRef.current.addComment(newComment);
+    }
   };
   
   // Toggle comments section
@@ -100,18 +109,21 @@ const PostCard = ({ post, userId, detailed = false }) => {
       </div>
       
       {/* Comments section */}
-      {showComments && (
-        <div className="mt-4">
-          <CommentForm
-            postId={post.id}
-            userId={userId}
+      {(showComments || detailed) && (
+        <div className="mt-3 border-t pt-3">
+          {/* Comment form */}
+          <CommentForm 
+            postId={post.id} 
+            userId={userId} 
             onCommentAdded={handleCommentAdded}
           />
           
-          <CommentList
-            postId={post.id}
-            userId={userId}
-            initialComments={post.comments}
+          {/* Comment list */}
+          <CommentList 
+            ref={commentListRef}
+            postId={post.id} 
+            userId={userId} 
+            initialComments={wsComments}
           />
         </div>
       )}
