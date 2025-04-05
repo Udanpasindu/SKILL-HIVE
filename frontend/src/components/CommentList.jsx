@@ -3,7 +3,7 @@ import { getComments } from '../services/api';
 import CommentItem from './CommentItem';
 import useWebSocket from '../hooks/useWebSocket';
 
-const CommentList = forwardRef(({ postId, userId, initialComments = [] }, ref) => {
+const CommentList = forwardRef(({ postId, userId, postOwnerId, initialComments = [] }, ref) => {
   const [loading, setLoading] = useState(false);
   const [lastAddedCommentId, setLastAddedCommentId] = useState(null);
   const { comments, setComments } = useWebSocket(postId, initialComments);
@@ -115,6 +115,7 @@ const CommentList = forwardRef(({ postId, userId, initialComments = [] }, ref) =
                 <CommentItem
                   comment={comment}
                   userId={userId}
+                  postOwnerId={postOwnerId}
                   onDelete={handleDelete}
                   onUpdate={handleUpdate}
                   isNew={comment.isNew || comment.id === lastAddedCommentId}

@@ -3,12 +3,16 @@ import { deleteComment } from '../services/api';
 import { parseMentions } from '../utils/mentionParser';
 import CommentForm from './CommentForm';
 
-const CommentItem = ({ comment, userId, onDelete, onUpdate, isNew }) => {
+const CommentItem = ({ comment, userId, postOwnerId, onDelete, onUpdate, isNew }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isHighlighted, setIsHighlighted] = useState(isNew);
   
-  const isOwner = userId === comment.userId;
+  const isCommentOwner = userId === comment.userId;
+  const isPostOwner = userId === postOwnerId;
+  const canDelete = isCommentOwner || isPostOwner;
+  const canEdit = isCommentOwner; // Only comment owner can edit
+  
   const formattedDate = new Date(comment.createdAt).toLocaleString();
   
   // Highlight effect for new comments
@@ -23,7 +27,7 @@ const CommentItem = ({ comment, userId, onDelete, onUpdate, isNew }) => {
   }, [isNew]);
 
   const handleDelete = async () => {
-    if (!isOwner || isDeleting) return;
+    if (!canDelete || isDeleting) return;
     
     const confirmDelete = window.confirm('Are you sure you want to delete this comment?');
     if (!confirmDelete) return;
@@ -99,28 +103,32 @@ const CommentItem = ({ comment, userId, onDelete, onUpdate, isNew }) => {
                   <span className="text-xs text-gray-500 mt-1">{formattedDate}</span>
                 </div>
                 
-                {isOwner && (
+                {(canDelete || canEdit) && (
                   <div className="group">
-                    <div className="flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                      <button
-                        onClick={handleEdit}
-                        className="text-xs text-gray-500 hover:text-blue-500 transition-colors duration-200"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={handleDelete}
-                        disabled={isDeleting}
-                        className={`text-xs text-gray-500 hover:text-red-500 transition-colors duration-200 ${
-                          isDeleting ? 'opacity-50 cursor-not-allowed' : ''
-                        }`}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m5-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
+                    <div className="flex space-x-2 opacity-100 transition-opacity duration-200">
+                      {canEdit && (
+                        <button
+                          onClick={handleEdit}
+                          className="text-xs text-gray-500 hover:text-blue-500 transition-colors duration-200"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                      )}
+                      {canDelete && (
+                        <button
+                          onClick={handleDelete}
+                          disabled={isDeleting}
+                          className={`text-xs text-gray-500 hover:text-red-500 transition-colors duration-200 ${
+                            isDeleting ? 'opacity-50 cursor-not-allowed' : ''
+                          }`}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m5-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}

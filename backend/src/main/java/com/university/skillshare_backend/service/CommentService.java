@@ -125,8 +125,12 @@ public class CommentService {
         Comment comment = commentRepository.findById(commentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Comment", "id", commentId));
         
-        // Verify user owns the comment
-        if (!comment.getUserId().equals(userId)) {
+        // Fetch the associated post to check ownership
+        Post post = postRepository.findById(comment.getPostId())
+                .orElseThrow(() -> new ResourceNotFoundException("Post", "id", comment.getPostId()));
+        
+        // Verify user is either the comment owner or the post owner
+        if (!comment.getUserId().equals(userId) && !post.getUserId().equals(userId)) {
             throw new RuntimeException("You don't have permission to delete this comment");
         }
         
