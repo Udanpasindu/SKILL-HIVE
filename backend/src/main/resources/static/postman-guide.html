@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Testing Skillshare API with Postman</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        h1 {
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        h2 {
+            margin-top: 30px;
+            color: #0056b3;
+        }
+        h3 {
+            color: #555;
+            margin-top: 20px;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        code {
+            background-color: #f5f5f5;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        .endpoint {
+            margin-bottom: 30px;
+            border-left: 3px solid #0056b3;
+            padding-left: 15px;
+        }
+        .method {
+            font-weight: bold;
+        }
+        .get { color: #28a745; }
+        .post { color: #007bff; }
+        .put { color: #ffc107; }
+        .delete { color: #dc3545; }
+        img {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Testing Skillshare API with Postman</h1>
+    <p>This guide will help you test the Skillshare API endpoints using Postman.</p>
+
+    <h2>1. Initial Setup</h2>
+    <ol>
+        <li>Download and install <a href="https://www.postman.com/downloads/" target="_blank">Postman</a> if you haven't already.</li>
+        <li>Launch Postman and create a new collection called "Skillshare API".</li>
+        <li>Set a collection variable called "baseUrl" with value "http://localhost:8081" to easily reference the API base URL.</li>
+    </ol>
+
+    <h2>2. Testing User Endpoints</h2>
+    
+    <div class="endpoint">
+        <h3><span class="method post">POST</span> Create a Test User</h3>
+        <p>Before testing other endpoints, create a test user:</p>
+        <ul>
+            <li><strong>URL:</strong> <code>{{baseUrl}}/api/users</code></li>
+            <li><strong>Method:</strong> POST</li>
+            <li><strong>Headers:</strong> Content-Type: application/json</li>
+            <li><strong>Body (raw JSON):</strong></li>
+        </ul>
+<pre>
+{
+    "username": "testuser",
+    "email": "test@example.com",
+    "fullName": "Test User"
+}
+</pre>
+        <p>Save the returned <code>id</code> value for use in subsequent requests.</p>
+    </div>
+
+    <h2>3. Testing Post Endpoints</h2>
+    
+    <div class="endpoint">
+        <h3><span class="method post">POST</span> Create a Test Post</h3>
+        <ul>
+            <li><strong>URL:</strong> <code>{{baseUrl}}/api/posts</code></li>
+            <li><strong>Method:</strong> POST</li>
+            <li><strong>Headers:</strong> Content-Type: application/json</li>
+            <li><strong>Body (raw JSON):</strong></li>
+        </ul>
+<pre>
+{
+    "userId": "YOUR_USER_ID",
+    "title": "Test Post",
+    "content": "This is a test post for API testing."
+}
+</pre>
+        <p>Save the returned <code>id</code> value as <code>postId</code> for use in subsequent requests.</p>
+    </div>
+
+    <h2>4. Testing Like Endpoints</h2>
+
+    <div class="endpoint">
+        <h3><span class="method post">POST</span> Like a Post</h3>
+        <ul>
+            <li><strong>URL:</strong> <code>{{baseUrl}}/api/posts/{{postId}}/like?userId=YOUR_USER_ID</code></li>
+            <li><strong>Method:</strong> POST</li>
+            <li><strong>Params:</strong> userId (query parameter)</li>
+        </ul>
+        <p>Expected response will include the updated like count and confirmation.</p>
+    </div>
+
+    <div class="endpoint">
+        <h3><span class="method get">GET</span> Get Like Count</h3>
+        <ul>
+            <li><strong>URL:</strong> <code>{{baseUrl}}/api/posts/{{postId}}/likes</code></li>
+            <li><strong>Method:</strong> GET</li>
+        </ul>
+        <p>Expected response will include the total like count for the post.</p>
+    </div>
+
+    <div class="endpoint">
+        <h3><span class="method delete">DELETE</span> Unlike a Post</h3>
+        <ul>
+            <li><strong>URL:</strong> <code>{{baseUrl}}/api/posts/{{postId}}/like?userId=YOUR_USER_ID</code></li>
+            <li><strong>Method:</strong> DELETE</li>
+            <li><strong>Params:</strong> userId (query parameter)</li>
+        </ul>
+        <p>Expected response will confirm the unlike action and provide updated count.</p>
+    </div>
+
+    <h2>5. Testing Comment Endpoints</h2>
+
+    <div class="endpoint">
+        <h3><span class="method post">POST</span> Add a Comment</h3>
+        <ul>
+            <li><strong>URL:</strong> <code>{{baseUrl}}/api/posts/{{postId}}/comments?userId=YOUR_USER_ID</code></li>
+            <li><strong>Method:</strong> POST</li>
+            <li><strong>Headers:</strong> Content-Type: application/json</li>
+            <li><strong>Params:</strong> userId (query parameter)</li>
+            <li><strong>Body (raw JSON):</strong></li>
+        </ul>
+<pre>
+{
+    "text": "This is a test comment with @mention!"
+}
+</pre>
+        <p>Save the returned <code>id</code> value as <code>commentId</code> for use in subsequent requests.</p>
+    </div>
+
+    <div class="endpoint">
+        <h3><span class="method get">GET</span> Get All Comments for a Post</h3>
+        <ul>
+            <li><strong>URL:</strong> <code>{{baseUrl}}/api/posts/{{postId}}/comments</code></li>
+            <li><strong>Method:</strong> GET</li>
+        </ul>
+        <p>Expected response will include an array of all comments for the post.</p>
+    </div>
+
+    <div class="endpoint">
+        <h3><span class="method put">PUT</span> Edit a Comment</h3>
+        <ul>
+            <li><strong>URL:</strong> <code>{{baseUrl}}/api/comments/{{commentId}}?userId=YOUR_USER_ID</code></li>
+            <li><strong>Method:</strong> PUT</li>
+            <li><strong>Headers:</strong> Content-Type: application/json</li>
+            <li><strong>Params:</strong> userId (query parameter)</li>
+            <li><strong>Body (raw JSON):</strong></li>
+        </ul>
+<pre>
+{
+    "text": "This is an edited comment with @testuser!"
+}
+</pre>
+        <p>Expected response will include the updated comment with new text.</p>
+    </div>
+
+    <div class="endpoint">
+        <h3><span class="method delete">DELETE</span> Delete a Comment</h3>
+        <ul>
+            <li><strong>URL:</strong> <code>{{baseUrl}}/api/comments/{{commentId}}?userId=YOUR_USER_ID</code></li>
+            <li><strong>Method:</strong> DELETE</li>
+            <li><strong>Params:</strong> userId (query parameter)</li>
+        </ul>
+        <p>Expected response will confirm the deletion.</p>
+    </div>
+
+    <h2>6. Testing User Search (for @mentions)</h2>
+
+    <div class="endpoint">
+        <h3><span class="method get">GET</span> Search Users</h3>
+        <ul>
+            <li><strong>URL:</strong> <code>{{baseUrl}}/api/users/search?query=test</code></li>
+            <li><strong>Method:</strong> GET</li>
+            <li><strong>Params:</strong> query (search term, query parameter)</li>
+        </ul>
+        <p>Expected response will include users matching the search query.</p>
+    </div>
+
+    <h2>7. Testing WebSocket Connections (Browser)</h2>
+    <p>For WebSocket testing, use the following JavaScript in your browser console or integrate into your frontend:</p>
+<pre>
+// Connect to WebSocket
+const socket = new SockJS('http://localhost:8081/ws');
+const stompClient = Stomp.over(socket);
+
+// Connect and subscribe to like updates for a post
+stompClient.connect({}, frame => {
+  console.log('Connected: ' + frame);
+  
+  // Subscribe to like updates
+  stompClient.subscribe('/topic/likes/YOUR_POST_ID', response => {
+    const data = JSON.parse(response.body);
+    console.log(`Post ${data.postId} now has ${data.likeCount} likes`);
+  });
+  
+  // Subscribe to comment updates
+  stompClient.subscribe('/topic/comments/YOUR_POST_ID', response => {
+    const data = JSON.parse(response.body);
+    console.log('New comment:', data);
+  });
+});
+</pre>
+
+    <p>After setting up the WebSocket connection, perform like and comment operations in Postman to see real-time updates in your browser console.</p>
+
+    <h2>8. Tips for Efficient Testing</h2>
+    <ul>
+        <li>Use environment variables in Postman to store your <code>baseUrl</code>, <code>userId</code>, <code>postId</code>, and <code>commentId</code>.</li>
+        <li>Create a collection with all your requests and organize them in folders.</li>
+        <li>Use Postman's Tests tab to write automated assertions.</li>
+        <li>For WebSocket testing, consider using tools like <a href="https://github.com/websockets/wscat" target="_blank">wscat</a> or the browser's Developer Tools.</li>
+    </ul>
+
+</body>
+</html>

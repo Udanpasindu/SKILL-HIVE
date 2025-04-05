@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skillshare API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #333;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #555;
+            margin-top: 30px;
+        }
+        code {
+            background-color: #f5f5f5;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        .endpoint {
+            margin-bottom: 20px;
+            border-left: 3px solid #3498db;
+            padding-left: 15px;
+        }
+        .method {
+            font-weight: bold;
+            color: #3498db;
+        }
+    </style>
+</head>
+<body>
+    <h1>Skillshare Platform API (Port 8081)</h1>
+    <p>Welcome to the Skillshare Platform API. Below are the available endpoints:</p>
+    
+    <h2>Comments</h2>
+    <div class="endpoint">
+        <p><span class="method">GET</span> <code>/api/posts/{postId}/comments</code> - Get all comments for a post</p>
+        <p><span class="method">POST</span> <code>/api/posts/{postId}/comments</code> - Add a comment to a post</p>
+        <p><span class="method">PUT</span> <code>/api/comments/{commentId}</code> - Edit a comment</p>
+        <p><span class="method">DELETE</span> <code>/api/comments/{commentId}</code> - Delete a comment</p>
+    </div>
+    
+    <h2>Likes</h2>
+    <div class="endpoint">
+        <p><span class="method">GET</span> <code>/api/posts/{postId}/likes</code> - Get like count for a post</p>
+        <p><span class="method">POST</span> <code>/api/posts/{postId}/like</code> - Like a post</p>
+        <p><span class="method">DELETE</span> <code>/api/posts/{postId}/like</code> - Unlike a post</p>
+    </div>
+    
+    <h2>Users</h2>
+    <div class="endpoint">
+        <p><span class="method">GET</span> <code>/api/users/search?query={query}</code> - Search for users</p>
+        <p><span class="method">GET</span> <code>/api/users/{userId}</code> - Get user by ID</p>
+    </div>
+    
+    <h2>WebSocket</h2>
+    <div class="endpoint">
+        <p>Connect to <code>/ws</code> using SockJS/STOMP</p>
+        <p>Subscribe to <code>/topic/likes/{postId}</code> for real-time like updates</p>
+        <p>Subscribe to <code>/topic/comments/{postId}</code> for real-time comments</p>
+    </div>
+    
+    <h2>Example</h2>
+    <pre>// Connect to WebSocket
+const socket = new SockJS('/ws');
+const stompClient = Stomp.over(socket);
+
+// Subscribe to like updates for a post
+stompClient.connect({}, () => {
+  stompClient.subscribe('/topic/likes/post123', (response) => {
+    const data = JSON.parse(response.body);
+    console.log(`Post ${data.postId} now has ${data.likeCount} likes`);
+  });
+});</pre>
+
+    <h2>Note</h2>
+    <p>This server is running on port 8081. Make sure to use <code>http://localhost:8081</code> for all your API requests.</p>
+
+</body>
+</html>

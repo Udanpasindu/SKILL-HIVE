@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stomp-websocket@2.3.4-next/lib/stomp.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        .container {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .connection-status {
+            padding: 12px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            font-weight: bold;
+            text-align: center;
+        }
+        .connected {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #495057;
+        }
+        input, button, select {
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #ced4da;
+            width: 100%;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+        .buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            flex: 1;
+            font-size: 16px;
+            transition: background-color 0.2s;
+        }
+        button:hover:not(:disabled) {
+            background-color: #0069d9;
+        }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+            opacity: 0.65;
+        }
+        .events-container {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-top: 20px;
+            padding: 15px;
+        }
+        .events-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #dee2e6;
+            padding-bottom: 10px;
+        }
+        .events {
+            height: 400px;
+            overflow-y: auto;
+            background-color: #f9f9f9;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+        }
+        .event {
+            border-bottom: 1px solid #eee;
+            padding: 12px;
+            transition: background-color 0.2s;
+        }
+        .event:hover {
+            background-color: #f1f3f5;
+        }
+        .event pre {
+            margin: 8px 0;
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            border: 1px solid #e9ecef;
+        }
+        .event-time {
+            color: #6c757d;
+            font-size: 0.85em;
+        }
+        .event-type {
+            font-weight: bold;
+        }
+        .event-like { color: #28a745; }
+        .event-comment { color: #007bff; }
+        .event-delete { color: #dc3545; }
+        .event-connect { color: #17a2b8; }
+        .event-error { color: #dc3545; }
+        .clear-btn {
+            background-color: #6c757d;
+            padding: 5px 10px;
+            font-size: 14px;
+        }
+        .sample-data {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            display: none;
+        }
+        .show-samples {
+            cursor: pointer;
+            color: #007bff;
+            text-decoration: underline;
+            margin-top: 15px;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Tester for Skillshare API</h1>
+    
+    <div class="container">
+        <div id="status" class="connection-status disconnected">Disconnected</div>
+        
+        <div class="form-group">
+            <label for="postId">Post ID to monitor:</label>
+            <input type="text" id="postId" placeholder="Enter post ID to monitor WebSocket events">
+        </div>
+        
+        <div class="form-group">
+            <label for="sendType">Send Test Message (when connected):</label>
+            <select id="sendType" disabled>
+                <option value="like">Like Event</option>
+                <option value="comment">Comment Event</option>
+            </select>
+        </div>
+        
+        <div class="buttons">
+            <button id="connect">Connect</button>
+            <button id="disconnect" disabled>Disconnect</button>
+            <button id="send" disabled>Send Test</button>
+        </div>
+        
+        <div class="show-samples" id="showSamples">Show sample post IDs</div>
+        
+        <div class="sample-data" id="sampleData">
+            <p>If you don't have any post IDs yet, you can create posts first using Postman with the following steps:</p>
+            <ol>
+                <li>Create a user at <code>POST /api/users</code></li>
+                <li>Create a post at <code>POST /api/posts</code> using the user ID</li>
+                <li>The response will contain a post ID you can use here</li>
+            </ol>
+        </div>
+    </div>
+    
+    <div class="events-container">
+        <div class="events-header">
+            <h2>Events Log</h2>
+            <button id="clearEvents" class="clear-btn">Clear</button>
+        </div>
+        <div class="events">
+            <div id="eventsList"></div>
+        </div>
+    </div>
+    
+    <script>
+        let stompClient = null;
+        const connectBtn = document.getElementById('connect');
+        const disconnectBtn = document.getElementById('disconnect');
+        const sendBtn = document.getElementById('send');
+        const statusDiv = document.getElementById('status');
+        const eventsListDiv = document.getElementById('eventsList');
+        const postIdInput = document.getElementById('postId');
+        const sendTypeSelect = document.getElementById('sendType');
+        const clearEventsBtn = document.getElementById('clearEvents');
+        const showSamplesBtn = document.getElementById('showSamples');
+        const sampleDataDiv = document.getElementById('sampleData');
+
+        // Show/hide sample data
+        showSamplesBtn.addEventListener('click', function() {
+            if (sampleDataDiv.style.display === 'block') {
+                sampleDataDiv.style.display = 'none';
+                showSamplesBtn.textContent = 'Show sample post IDs';
+            } else {
+                sampleDataDiv.style.display = 'block';
+                showSamplesBtn.textContent = 'Hide sample post IDs';
+            }
+        });
+        
+        // Clear events
+        clearEventsBtn.addEventListener('click', function() {
+            eventsListDiv.innerHTML = '';
+            addEvent('System', 'Event log cleared');
+        });
+
+        // Connect to WebSocket
+        connectBtn.addEventListener('click', function() {
+            const postId = postIdInput.value.trim();
+            if (!postId) {
+                addEvent('Error', 'Please enter a post ID', null, 'event-error');
+                return;
+            }
+            
+            try {
+                // Create SockJS instance
+                const socket = new SockJS('/ws');
+                stompClient = Stomp.over(socket);
+                
+                // Disable debug logs
+                stompClient.debug = null;
+                
+                stompClient.connect({}, function(frame) {
+                    setConnected(true);
+                    addEvent('Connected', `WebSocket connection established`, null, 'event-connect');
+                    
+                    // Subscribe to like updates
+                    stompClient.subscribe(`/topic/likes/${postId}`, function(response) {
+                        const data = JSON.parse(response.body);
+                        addEvent('Like Update', `Post ${data.postId} now has ${data.likeCount} likes`, data, 'event-like');
+                    });
+                    
+                    // Subscribe to new comments
+                    stompClient.subscribe(`/topic/comments/${postId}`, function(response) {
+                        const data = JSON.parse(response.body);
+                        addEvent('New Comment', `New comment added to post ${postId}`, data, 'event-comment');
+                    });
+                    
+                    // Subscribe to comment updates
+                    stompClient.subscribe(`/topic/comments/${postId}/updates`, function(response) {
+                        try {
+                            const data = JSON.parse(response.body);
+                            if (data.deleted) {
+                                addEvent('Comment Deleted', `Comment ${data.deleted} was deleted`, data, 'event-delete');
+                            } else {
+                                addEvent('Comment Updated', `Comment was updated`, data, 'event-comment');
+                            }
+                        } catch (err) {
+                            addEvent('Error', `Failed to parse comment update: ${err.message}`, null, 'event-error');
+                        }
+                    });
+                }, function(error) {
+                    addEvent('Error', `Connection failed: ${error}`, null, 'event-error');
+                });
+            } catch (err) {
+                addEvent('Error', `Failed to initialize WebSocket: ${err.message}`, null, 'event-error');
+            }
+        });
+        
+        // Disconnect from WebSocket
+        disconnectBtn.addEventListener('click', function() {
+            if (stompClient !== null) {
+                try {
+                    stompClient.disconnect(() => {
+                        setConnected(false);
+                        addEvent('Disconnected', 'WebSocket connection closed', null, 'event-connect');
+                    });
+                } catch (err) {
+                    setConnected(false);
+                    addEvent('Error', `Disconnection error: ${err.message}`, null, 'event-error');
+                }
+            }
+        });
+        
+        // Send a test message
+        sendBtn.addEventListener('click', function() {
+            if (!stompClient || !stompClient.connected) {
+                addEvent('Error', 'Not connected to WebSocket', null, 'event-error');
+                return;
+            }
+            
+            const postId = postIdInput.value.trim();
+            const messageType = sendTypeSelect.value;
+            
+            try {
+                if (messageType === 'like') {
+                    // Send a like event
+                    stompClient.send("/app/like", {}, JSON.stringify({
+                        postId: postId,
+                        type: 'LIKE',
+                        sender: 'WebSocket Tester'
+                    }));
+                    addEvent('Sent', 'Like event sent to server', null, 'event-like');
+                } else if (messageType === 'comment') {
+                    // Send a comment event
+                    stompClient.send("/app/comment", {}, JSON.stringify({
+                        postId: postId,
+                        text: 'Test comment from WebSocket Tester',
+                        sender: 'WebSocket Tester'
+                    }));
+                    addEvent('Sent', 'Comment event sent to server', null, 'event-comment');
+                }
+            } catch (err) {
+                addEvent('Error', `Failed to send message: ${err.message}`, null, 'event-error');
+            }
+        });
+        
+        // Update UI based on connection status
+        function setConnected(connected) {
+            connectBtn.disabled = connected;
+            disconnectBtn.disabled = !connected;
+            sendBtn.disabled = !connected;
+            sendTypeSelect.disabled = !connected;
+            postIdInput.disabled = connected;
+            
+            if (connected) {
+                statusDiv.className = 'connection-status connected';
+                statusDiv.textContent = 'Connected';
+            } else {
+                statusDiv.className = 'connection-status disconnected';
+                statusDiv.textContent = 'Disconnected';
+                // Clear client reference
+                stompClient = null;
+            }
+        }
+        
+        // Add event to the events list
+        function addEvent(type, message, data = null, cssClass = '') {
+            const eventDiv = document.createElement('div');
+            eventDiv.className = `event ${cssClass}`;
+            
+            const timestamp = new Date().toLocaleTimeString();
+            eventDiv.innerHTML = `
+                <span class="event-time">${timestamp}</span> - 
+                <span class="event-type">${type}:</span> ${message}
+            `;
+            
+            if (data) {
+                const pre = document.createElement('pre');
+                pre.textContent = JSON.stringify(data, null, 2);
+                eventDiv.appendChild(pre);
+            }
+            
+            eventsListDiv.insertBefore(eventDiv, eventsListDiv.firstChild);
+        }
+        
+        // Add welcome message
+        addEvent('Welcome', 'WebSocket tester initialized. Enter a post ID and click Connect to begin monitoring events.');
+    </script>
+</body>
+</html>

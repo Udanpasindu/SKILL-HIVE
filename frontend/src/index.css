@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base styles that don't conflict with Tailwind */
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  display: block;
+}
+
+:root {
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Dark mode setup */
+.dark {
+  @apply bg-gray-900 text-white;
+}
+
+/* Light mode is the default */
+:root {
+  @apply text-gray-900 bg-white;
+}
+
+/* Dark mode is applied when the .dark class is added to the html element */
+.dark button {
+  @apply bg-gray-800 text-white border-gray-700;
+}
+
+.dark button:hover {
+  @apply border-blue-500;
+}
+
+a {
+  @apply font-medium text-blue-600 dark:text-blue-400;
+}
+
+a:hover {
+  @apply text-blue-800 dark:text-blue-300;
+}
+
+h1 {
+  @apply text-4xl font-bold leading-tight;
+}
+
+button {
+  @apply rounded-md border border-transparent px-4 py-2 text-base font-medium bg-gray-100 dark:bg-gray-800 cursor-pointer transition-colors;
+}
+
+button:hover {
+  @apply border-blue-600;
+}
+
+/* Focus styles */
+button:focus,
+button:focus-visible {
+  @apply outline-none ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-gray-900;
+}
