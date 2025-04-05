@@ -1,57 +1,70 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { connectWebSocket } from '../services/websocket';
 
 /**
  * Custom hook for WebSocket connections to monitor a post
  * 
  * @param {string} postId - The post ID to monitor
+ * @param {array} initialComments - Initial comments to set
  * @returns {object} - State values for likes and comments
  */
-export const useWebSocket = (postId) => {
+export const useWebSocket = (postId, initialComments = []) => {
   const [likeCount, setLikeCount] = useState(0);
-  const [comments, setComments] = useState([]);
+  const [comments, setComments] = useState(initialComments);
+  // Keep track of locally added comment IDs
+  const locallyAddedComments = useRef(new Set());
 
   useEffect(() => {
     if (!postId) return;
     
-    // Define callback handlers
     const callbacks = {
-      // Handle like updates
       onLikeUpdate: (data) => {
         setLikeCount(data.likeCount);
       },
       
-      // Handle new comments
-      onNewComment: (newComment) => {
-        setComments(prevComments => [...prevComments, newComment]);
+      onNewComment: (comment) => {
+        // Check if this comment was already added locally
+        if (locallyAddedComments.current.has(comment.id)) {
+          return; // Skip adding duplicate comments
+        }
+        
+        setComments(prev => {
+          // Double check to avoid duplicates
+          if (!prev.some(c => c.id === comment.id)) {
+            return [...prev, comment];
+          }
+          return prev;
+        });
       },
       
-      // Handle comment updates (edit/delete)
       onCommentUpdate: (update) => {
         if (update.deleted) {
-          // Handle comment deletion
-          setComments(prevComments => 
-            prevComments.filter(comment => comment.id !== update.deleted)
-          );
+          setComments(prev => prev.filter(c => c.id !== update.deleted));
         } else {
-          // Handle comment edit
-          setComments(prevComments => 
-            prevComments.map(comment => 
-              comment.id === update.id ? update : comment
-            )
-          );
+          setComments(prev => prev.map(c => c.id === update.id ? update : c));
         }
       }
     };
     
-    // Connect to WebSocket
     const disconnect = connectWebSocket(postId, callbacks);
-    
-    // Cleanup on unmount
     return disconnect;
   }, [postId]);
   
-  return { likeCount, comments };
+  // Add effect to sync with initial comments
+  useEffect(() => {
+    if (initialComments && initialComments.length > 0) {
+      setComments(initialComments);
+    }
+  }, [initialComments]);
+
+  return { 
+    likeCount, 
+    comments, 
+    setComments,
+    addLocalComment: (commentId) => {
+      locallyAddedComments.current.add(commentId);
+    }
+  };
 };
 
 export default useWebSocket;
