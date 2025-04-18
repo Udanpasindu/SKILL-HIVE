@@ -2,7 +2,10 @@ package com.university.skillshare_backend.model;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.DBRef;
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 @Document(collection = "groups")
 public class Group {
@@ -13,6 +16,9 @@ public class Group {
     private String photoUrl;
     private String ownerId;
     private LocalDateTime createdAt;
+    
+    @DBRef
+    private Set<User> members = new HashSet<>();
 
     // Getters and Setters
     public String getId() { return id; }
@@ -32,4 +38,32 @@ public class Group {
     
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    
+    public Set<User> getMembers() {
+        return members != null ? members : new HashSet<>();
+    }
+    
+    public void setMembers(Set<User> members) {
+        this.members = members != null ? members : new HashSet<>();
+    }
+    
+    public boolean hasMember(User user) {
+        return getMembers().stream()
+            .anyMatch(member -> member.getId().equals(user.getId()));
+    }
+    
+    public void addMember(User user) {
+        if (this.members == null) {
+            this.members = new HashSet<>();
+        }
+        if (!hasMember(user)) {
+            this.members.add(user);
+        }
+    }
+    
+    public void removeMember(User user) {
+        if (this.members != null) {
+            this.members.removeIf(member -> member.getId().equals(user.getId()));
+        }
+    }
 }

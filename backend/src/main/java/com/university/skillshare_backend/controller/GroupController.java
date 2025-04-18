@@ -11,7 +11,9 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import com.university.skillshare_backend.model.Group;
+import com.university.skillshare_backend.model.User;
 import com.university.skillshare_backend.repository.GroupRepository;
+import com.university.skillshare_backend.repository.UserRepository;
 import com.university.skillshare_backend.exception.ResourceNotFoundException;
 import jakarta.annotation.PostConstruct;
 
@@ -32,11 +34,13 @@ public class GroupController {
     private String uploadDir;
     
     private final GroupRepository groupRepository;
+    private final UserRepository userRepository;
     private Path fileStorageLocation;
     
     @Autowired
-    public GroupController(GroupRepository groupRepository) {
+    public GroupController(GroupRepository groupRepository, UserRepository userRepository) {
         this.groupRepository = groupRepository;
+        this.userRepository = userRepository;
     }
     @PostConstruct
     public void init() {
@@ -168,6 +172,71 @@ public class GroupController {
             }
         } catch (MalformedURLException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @PostMapping("/{groupId}/join")
+    public ResponseEntity<?> joinGroup(@PathVariable String groupId, @RequestParam String userId) {
+        try {
+            Group group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new ResourceNotFoundException("Group", "id", groupId));
+            User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+            
+            if (group.hasMember(user)) {
+                return ResponseEntity.badRequest().body("User is already a member of this group");
+            }
+            
+            group.addMember(user);
+            Group updatedGroup = groupRepository.save(group);
+            return ResponseEntity.ok(updatedGroup);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+    
+    @PostMapping("/{groupId}/leave")
+    public ResponseEntity<?> leaveGroup(@PathVariable String groupId, @RequestParam String userId) {
+        try {
+            Group group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new ResourceNotFoundException("Group", "id", groupId));
+            User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+            
+            if (!group.hasMember(user)) {
+                return ResponseEntity.badRequest().body("User is not a member of this group");
+            }
+            
+            group.removeMember(user);
+            Group updatedGroup = groupRepository.save(group);
+            return ResponseEntity.ok(updatedGroup);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/{groupId}/remove-member")
+    public ResponseEntity<?> removeMember(@PathVariable String groupId, 
+                                        @RequestParam String memberId,
+                                        @RequestParam String ownerId) {
+        try {
+            Group group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new ResourceNotFoundException("Group", "id", groupId));
+                
+            // Verify that the request is made by the owner
+            if (!group.getOwnerId().equals(ownerId)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body("Only group owner can remove members");
+            }
+            
+            User member = userRepository.findById(memberId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", memberId));
+            
+            group.removeMember(member);
+            Group updatedGroup = groupRepository.save(group);
+            return ResponseEntity.ok(updatedGroup);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 }
