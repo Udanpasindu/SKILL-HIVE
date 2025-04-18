@@ -15,10 +15,17 @@ const GroupPage = () => {
     photo: null
   });
   const [loading, setLoading] = useState(true);
+  const [isMember, setIsMember] = useState(false);
 
   useEffect(() => {
     fetchGroupDetails();
   }, [groupId]);
+
+  useEffect(() => {
+    if (group && currentUser) {
+      setIsMember(group.members?.some(member => member.id === currentUser.id));
+    }
+  }, [group, currentUser]);
 
   const fetchGroupDetails = async () => {
     try {
@@ -64,6 +71,37 @@ const GroupPage = () => {
       setIsEditing(false);
     } catch (error) {
       console.error('Error updating group:', error);
+    }
+  };
+
+  const handleJoinLeave = async () => {
+    try {
+      if (isMember) {
+        await axios.post(`http://localhost:8081/api/groups/${groupId}/leave?userId=${currentUser.id}`);
+        setIsMember(false);
+      } else {
+        await axios.post(`http://localhost:8081/api/groups/${groupId}/join?userId=${currentUser.id}`);
+        setIsMember(true);
+      }
+      // Refresh group details to get updated member list
+      await fetchGroupDetails();
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
+
+  const handleRemoveMember = async (memberId) => {
+    if (!window.confirm('Are you sure you want to remove this member?')) {
+      return;
+    }
+
+    try {
+      await axios.post(
+        `http://localhost:8081/api/groups/${groupId}/remove-member?memberId=${memberId}&ownerId=${currentUser.id}`
+      );
+      await fetchGroupDetails();
+    } catch (error) {
+      console.error('Error removing member:', error);
     }
   };
 
@@ -137,17 +175,56 @@ const GroupPage = () => {
         ) : (
           <div className="p-6">
             <div className="flex justify-between items-start">
-              <h1 className="text-3xl font-bold text-gray-900">{group.name}</h1>
-              {isOwner && (
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">{group.name}</h1>
+                <p className="text-gray-500 mt-2">{group.members?.length || 0} members</p>
+              </div>
+              {isOwner ? (
                 <button
                   onClick={() => setIsEditing(true)}
                   className="px-4 py-2 bg-indigo-600 text-white rounded-md"
                 >
                   Edit Group
                 </button>
+              ) : (
+                <button
+                  onClick={handleJoinLeave}
+                  className={`px-4 py-2 rounded-md ${
+                    isMember 
+                      ? 'bg-red-100 text-red-600 hover:bg-red-200'
+                      : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                  }`}
+                >
+                  {isMember ? 'Leave Group' : 'Join Group'}
+                </button>
               )}
             </div>
             <p className="mt-4 text-gray-600">{group.description}</p>
+            
+            {/* Members section */}
+            <div className="mt-8">
+              <h2 className="text-xl font-semibold mb-4">Members ({(group.members || []).length})</h2>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {(group.members || []).map(member => (
+                  <div key={member.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center">
+                        {member.username ? member.username[0].toUpperCase() : '?'}
+                      </div>
+                      <span>{member.username}</span>
+                    </div>
+                    {isOwner && member.id !== currentUser.id && (
+                      <button
+                        onClick={() => handleRemoveMember(member.id)}
+                        className="text-red-600 hover:text-red-800 text-sm"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         )}
       </div>
