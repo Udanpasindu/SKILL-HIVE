@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { useUser } from '../contexts/UserContext';
 
-const GroupCard = ({ group, onDelete, isOwner }) => {
+const GroupCard = ({ group, onDelete, isOwner, onMembershipChange }) => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { currentUser } = useUser();
+  const [isMember, setIsMember] = useState(group.members?.some(member => member.id === currentUser?.id));
 
   const handleDelete = async () => {
     if (!window.confirm('Are you sure you want to delete this group?')) return;
@@ -15,6 +18,35 @@ const GroupCard = ({ group, onDelete, isOwner }) => {
       onDelete(group.id);
     } catch (error) {
       console.error('Error deleting group:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleJoinLeave = async () => {
+    setLoading(true);
+    try {
+      if (isMember) {
+        const response = await axios.post(`http://localhost:8081/api/groups/${group.id}/leave?userId=${currentUser.id}`);
+        if (response.data) {
+          setIsMember(false);
+          // Update the group data with the response
+          if (onMembershipChange) {
+            onMembershipChange(response.data);
+          }
+        }
+      } else {
+        const response = await axios.post(`http://localhost:8081/api/groups/${group.id}/join?userId=${currentUser.id}`);
+        if (response.data) {
+          setIsMember(true);
+          // Update the group data with the response
+          if (onMembershipChange) {
+            onMembershipChange(response.data);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error:', error);
     } finally {
       setLoading(false);
     }
@@ -37,8 +69,24 @@ const GroupCard = ({ group, onDelete, isOwner }) => {
           {group.name}
         </h3>
         <p className="text-gray-600 mt-2">{group.description}</p>
-        {isOwner && (
-          <div className="mt-4 flex justify-end">
+        <div className="mt-4 flex justify-between items-center">
+          <span className="text-sm text-gray-500">
+            {(group.members || []).length} members
+          </span>
+          {!isOwner && (
+            <button
+              onClick={handleJoinLeave}
+              disabled={loading}
+              className={`px-4 py-2 rounded-md ${
+                isMember 
+                  ? 'bg-red-100 text-red-600 hover:bg-red-200'
+                  : 'bg-indigo-600 text-white hover:bg-indigo-700'
+              }`}
+            >
+              {loading ? 'Processing...' : isMember ? 'Leave Group' : 'Join Group'}
+            </button>
+          )}
+          {isOwner && (
             <button
               onClick={handleDelete}
               disabled={loading}
@@ -46,8 +94,8 @@ const GroupCard = ({ group, onDelete, isOwner }) => {
             >
               {loading ? 'Deleting...' : 'Delete Group'}
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
