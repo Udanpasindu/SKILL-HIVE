@@ -1,5 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useUser } from '../contexts/UserContext';
+import axios from 'axios';
+import GroupForm from '../components/GroupForm';
+import GroupCard from '../components/GroupCard';
 
 const GroupsPage = () => {
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -7,13 +10,32 @@ const GroupsPage = () => {
   const [loading, setLoading] = useState(false);
   const { currentUser } = useUser();
 
-  const handleCreateGroup = async (e) => {
-    e.preventDefault();
-    // TODO: Implement group creation logic
+  useEffect(() => {
+    fetchGroups();
+  }, []);
+
+  const fetchGroups = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.get('http://localhost:8081/api/groups');
+      setGroups(response.data);
+    } catch (error) {
+      console.error('Error fetching groups:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGroupCreated = (newGroup) => {
+    setGroups([...groups, newGroup]);
+  };
+
+  const handleGroupDeleted = (groupId) => {
+    setGroups(groups.filter(group => group.id !== groupId));
   };
 
   return (
-    <div className="container mx-auto max-w-4xl px-4 py-8">
+    <div className="container mx-auto max-w-6xl px-4 py-8">
       <div className="bg-white shadow-lg rounded-lg overflow-hidden">
         <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-8 text-white">
           <div className="flex justify-between items-center">
@@ -46,12 +68,26 @@ const GroupsPage = () => {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Group cards will go here */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {groups.map(group => (
+                <GroupCard
+                  key={group.id}
+                  group={group}
+                  onDelete={handleGroupDeleted}
+                  isOwner={group.ownerId === currentUser?.id}
+                />
+              ))}
             </div>
           )}
         </div>
       </div>
+
+      {showCreateForm && (
+        <GroupForm
+          onClose={() => setShowCreateForm(false)}
+          onGroupCreated={handleGroupCreated}
+        />
+      )}
     </div>
   );
 };
