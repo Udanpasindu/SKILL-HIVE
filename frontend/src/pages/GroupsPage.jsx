@@ -34,6 +34,14 @@ const GroupsPage = () => {
     setGroups(groups.filter(group => group.id !== groupId));
   };
 
+  const handleMembershipChange = async (updatedGroup) => {
+    setGroups(prevGroups => 
+      prevGroups.map(group => 
+        group.id === updatedGroup.id ? updatedGroup : group
+      )
+    );
+  };
+
   return (
     <div className="container mx-auto max-w-6xl px-4 py-8">
       <div className="bg-white shadow-lg rounded-lg overflow-hidden">
@@ -75,6 +83,7 @@ const GroupsPage = () => {
                   group={group}
                   onDelete={handleGroupDeleted}
                   isOwner={group.ownerId === currentUser?.id}
+                  onMembershipChange={handleMembershipChange}
                 />
               ))}
             </div>
