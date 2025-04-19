@@ -88,24 +88,40 @@ const PostCard = ({ post, userId, detailed = false }) => {
           onLikeUpdate={setLocalLikeCount}
         />
         
-        {!detailed && (
+        <div className="flex gap-2">
           <button
-            onClick={toggleComments}
-            className="inline-flex items-center gap-2 px-3 py-1 text-gray-600 hover:text-blue-600 text-sm font-medium"
+            className="inline-flex items-center gap-1 px-3 py-1 text-gray-600 hover:text-green-600 text-sm font-medium"
           >
-            <span className="material-icons text-base">comment</span>
-            {showComments ? 'Hide Comments' : 'Show Comments'}
+            <span className="material-icons text-base">edit</span>
+            Edit
           </button>
-        )}
-        
-        {!detailed && (
-          <Link
-            to={`/post/${post.id}`}
-            className="text-blue-500 hover:text-blue-700 text-sm"
+          
+          <button
+            className="inline-flex items-center gap-1 px-3 py-1 text-gray-600 hover:text-red-600 text-sm font-medium"
           >
-            View Details
-          </Link>
-        )}
+            <span className="material-icons text-base">delete</span>
+            Delete
+          </button>
+          
+          {!detailed && (
+            <button
+              onClick={toggleComments}
+              className="inline-flex items-center gap-2 px-3 py-1 text-gray-600 hover:text-blue-600 text-sm font-medium"
+            >
+              <span className="material-icons text-base">comment</span>
+              {showComments ? 'Hide Comments' : 'Show Comments'}
+            </button>
+          )}
+          
+          {!detailed && (
+            <Link
+              to={`/post/${post.id}`}
+              className="text-blue-500 hover:text-blue-700 text-sm"
+            >
+              View Details
+            </Link>
+          )}
+        </div>
       </div>
       
       {/* Comments section */}
