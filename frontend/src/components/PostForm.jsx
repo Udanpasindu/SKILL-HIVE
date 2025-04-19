@@ -5,10 +5,24 @@ import { useUser } from '../contexts/UserContext';
 const PostForm = ({ onPostCreated }) => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
+  const [image, setImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
   
   const { currentUser } = useUser();
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
   
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -19,19 +33,27 @@ const PostForm = ({ onPostCreated }) => {
     
     setIsSubmitting(true);
     
+    const formData = new FormData();
+    formData.append('userId', currentUser.id);
+    formData.append('title', title);
+    formData.append('content', content);
+    if (image) {
+      formData.append('image', image);
+    }
+    
     try {
-      const response = await axios.post('http://localhost:8081/api/posts', {
-        userId: currentUser.id,
-        title: title,
-        content: content
+      const response = await axios.post('http://localhost:8081/api/posts', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       });
       
-      // Reset form
       setTitle('');
       setContent('');
+      setImage(null);
+      setImagePreview('');
       setShowForm(false);
       
-      // Notify parent component
       if (onPostCreated) {
         onPostCreated(response.data);
       }
@@ -89,6 +111,38 @@ const PostForm = ({ onPostCreated }) => {
             rows="4"
             required
           />
+        </div>
+
+        <div className="mb-4">
+          <label htmlFor="image" className="block text-sm font-medium text-gray-700 mb-1">
+            Image (optional)
+          </label>
+          <input
+            type="file"
+            id="image"
+            accept="image/*"
+            onChange={handleImageChange}
+            className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+          />
+          {imagePreview && (
+            <div className="mt-2">
+              <img
+                src={imagePreview}
+                alt="Preview"
+                className="max-h-48 rounded-md"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setImage(null);
+                  setImagePreview('');
+                }}
+                className="mt-2 text-red-500 text-sm"
+              >
+                Remove Image
+              </button>
+            </div>
+          )}
         </div>
         
         <div className="flex justify-end space-x-2">
