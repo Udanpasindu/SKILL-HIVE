@@ -9,6 +9,7 @@ import { getUser } from '../services/api';
 const PostCard = ({ post, userId, detailed = false }) => {
   const [authorName, setAuthorName] = useState('');
   const [showComments, setShowComments] = useState(detailed);
+  const [showDropdown, setShowDropdown] = useState(false);
   
   // Use WebSocket for real-time updates
   const { likeCount: wsLikeCount, comments: wsComments, addLocalComment } = useWebSocket(post.id);
@@ -72,6 +73,44 @@ const PostCard = ({ post, userId, detailed = false }) => {
             {post.createdAt && new Date(post.createdAt).toLocaleDateString()}
           </p>
         </div>
+        <div className="relative">
+          <button 
+            onClick={() => setShowDropdown(!showDropdown)}
+            className="flex items-center justify-center w-6 h-6 text-white hover:text-gray-200"
+            aria-label="Post options"
+          >
+            <svg width="16" height="4" viewBox="0 0 16 4" fill="currentColor">
+              <circle cx="2" cy="2" r="1.5"/>
+              <circle cx="8" cy="2" r="1.5"/>
+              <circle cx="14" cy="2" r="1.5"/>
+            </svg>
+          </button>
+          
+          {showDropdown && (
+            <div className="absolute right-0 mt-1 w-48 bg-white rounded-md py-1 z-10 border">
+              <button
+                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                onClick={() => {
+                  // Add edit handler here
+                  setShowDropdown(false);
+                }}
+              >
+                <span className="material-icons text-base">edit</span>
+                Edit Post
+              </button>
+              <button
+                className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 flex items-center gap-2"
+                onClick={() => {
+                  // Add delete handler here
+                  setShowDropdown(false);
+                }}
+              >
+                <span className="material-icons text-base text-red-600">delete</span>
+                Delete Post
+              </button>
+            </div>
+          )}
+        </div>
       </div>
       
       {/* Post content */}
@@ -89,20 +128,6 @@ const PostCard = ({ post, userId, detailed = false }) => {
         />
         
         <div className="flex gap-2">
-          <button
-            className="inline-flex items-center gap-1 px-3 py-1 text-gray-600 hover:text-green-600 text-sm font-medium"
-          >
-            <span className="material-icons text-base">edit</span>
-            Edit
-          </button>
-          
-          <button
-            className="inline-flex items-center gap-1 px-3 py-1 text-gray-600 hover:text-red-600 text-sm font-medium"
-          >
-            <span className="material-icons text-base">delete</span>
-            Delete
-          </button>
-          
           {!detailed && (
             <button
               onClick={toggleComments}
