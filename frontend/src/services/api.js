@@ -114,3 +114,12 @@ export const searchUsers = async (query) => {
     throw error;
   }
 };
+
+export const getUserPosts = async (userId) => {
+  const response = await fetch(`${API_URL}/posts/user/${userId}`, {
+    headers: {
+      'Authorization': `Bearer ${getToken()}`
+    }
+  });
+  return handleResponse(response);
+};

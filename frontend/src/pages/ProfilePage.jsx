@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useUser } from '../contexts/UserContext';
 import axios from 'axios';
+import UserPosts from '../components/UserPosts';
 
 const ProfilePage = () => {
   const { currentUser, updateUser } = useUser();
@@ -227,6 +228,10 @@ const ProfilePage = () => {
             </div>
           )}
         </div>
+      </div>
+
+      <div className="mt-8">
+        <UserPosts userId={currentUser.id} />
       </div>
     </div>
   );
