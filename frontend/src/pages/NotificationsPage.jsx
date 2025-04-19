@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useUser } from '../contexts/UserContext';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
@@ -7,14 +7,39 @@ const NotificationsPage = () => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all'); // 'all' or 'unread'
+  const [openDropdownId, setOpenDropdownId] = useState(null);
+  const [followStatus, setFollowStatus] = useState({});
   const { currentUser } = useUser();
   const navigate = useNavigate();
+  const dropdownRef = useRef(null);
 
   useEffect(() => {
     if (currentUser) {
       fetchNotifications();
     }
   }, [currentUser, activeTab]);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setOpenDropdownId(null);
+      }
+    }
+    
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [dropdownRef]);
+
+  useEffect(() => {
+    if (currentUser && notifications.length > 0) {
+      console.log("Checking for follow status with notifications:", 
+        notifications.filter(n => n.senderUserId && n.senderUserId !== currentUser.id)
+      );
+      fetchFollowStatus();
+    }
+  }, [currentUser, notifications]);
 
   const fetchNotifications = async () => {
     if (!currentUser) return;
@@ -26,17 +51,53 @@ const NotificationsPage = () => {
         : `http://localhost:8081/api/notifications/user/${currentUser.id}`;
         
       const response = await axios.get(endpoint);
-      setNotifications(response.data || []);
+      const notificationsData = response.data || [];
+      
+      console.log("Fetched notifications:", notificationsData);
+      
+      setNotifications(notificationsData);
     } catch (error) {
       console.error('Error fetching notifications:', error);
-      // Add alert for user feedback
       alert('Failed to load notifications. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleMarkAsRead = async (notificationId) => {
+  const fetchFollowStatus = async () => {
+    if (!currentUser) return;
+    
+    try {
+      const userIds = notifications
+        .filter(n => n.senderUserId && n.senderUserId !== currentUser.id)
+        .map(n => n.senderUserId);
+      
+      const uniqueUserIds = [...new Set(userIds)];
+      
+      if (uniqueUserIds.length === 0) return;
+      
+      const statusMap = {};
+      
+      await Promise.all(uniqueUserIds.map(async (userId) => {
+        try {
+          const response = await axios.get(
+            `http://localhost:8081/api/users/${currentUser.id}/following/${userId}`
+          );
+          statusMap[userId] = response.data;
+        } catch (error) {
+          console.error(`Error checking follow status for user ${userId}:`, error);
+          statusMap[userId] = false;
+        }
+      }));
+      
+      setFollowStatus(statusMap);
+    } catch (error) {
+      console.error('Error fetching follow status:', error);
+    }
+  };
+
+  const handleMarkAsRead = async (notificationId, e) => {
+    if (e) e.stopPropagation();
     try {
       await axios.put(`http://localhost:8081/api/notifications/${notificationId}/read`);
       setNotifications(notifications.map(n => 
@@ -48,7 +109,8 @@ const NotificationsPage = () => {
     }
   };
 
-  const handleMarkAsUnread = async (notificationId) => {
+  const handleMarkAsUnread = async (notificationId, e) => {
+    if (e) e.stopPropagation();
     try {
       await axios.put(`http://localhost:8081/api/notifications/${notificationId}/unread`);
       setNotifications(notifications.map(n => 
@@ -60,7 +122,8 @@ const NotificationsPage = () => {
     }
   };
 
-  const handleMarkAllAsRead = async () => {
+  const handleMarkAllAsRead = async (e) => {
+    if (e) e.stopPropagation();
     if (!currentUser) return;
     try {
       await axios.put(`http://localhost:8081/api/notifications/user/${currentUser.id}/read-all`);
@@ -71,7 +134,8 @@ const NotificationsPage = () => {
     }
   };
 
-  const handleDelete = async (notificationId) => {
+  const handleDelete = async (notificationId, e) => {
+    if (e) e.stopPropagation();
     try {
       await axios.delete(`http://localhost:8081/api/notifications/${notificationId}`);
       setNotifications(notifications.filter(n => n.id !== notificationId));
@@ -81,13 +145,28 @@ const NotificationsPage = () => {
     }
   };
 
+  const handleFollowUser = async (userId) => {
+    if (!currentUser || userId === currentUser.id) return;
+    
+    try {
+      if (followStatus[userId]) {
+        await axios.delete(`http://localhost:8081/api/users/${currentUser.id}/unfollow/${userId}`);
+        setFollowStatus(prev => ({...prev, [userId]: false}));
+      } else {
+        await axios.post(`http://localhost:8081/api/users/${currentUser.id}/follow/${userId}`);
+        setFollowStatus(prev => ({...prev, [userId]: true}));
+      }
+    } catch (error) {
+      console.error('Error following/unfollowing user:', error);
+      alert('Failed to update follow status.');
+    }
+  };
+
   const handleNotificationClick = (notification) => {
-    // Mark as read if unread
     if (!notification.read) {
       handleMarkAsRead(notification.id);
     }
     
-    // Navigate to related content if available
     if (notification.relatedItemId) {
       if (notification.type === 'COMMENT' || notification.type === 'LIKE' || notification.type === 'MENTION') {
         navigate(`/post/${notification.relatedItemId}`);
@@ -95,6 +174,11 @@ const NotificationsPage = () => {
         navigate(`/profile/${notification.relatedItemId}`);
       }
     }
+  };
+
+  const toggleDropdown = (notificationId, e) => {
+    if (e) e.stopPropagation();
+    setOpenDropdownId(openDropdownId === notificationId ? null : notificationId);
   };
 
   const formatDate = (dateString) => {
@@ -162,112 +246,134 @@ const NotificationsPage = () => {
   }
 
   return (
-    <div className="container mx-auto max-w-4xl px-4 py-8">
-      <div className="bg-white shadow-lg rounded-lg overflow-hidden">
-        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-8 text-white">
-          <h1 className="text-3xl font-bold">Notifications</h1>
-          <p className="text-indigo-100">Stay updated with your latest activities</p>
-        </div>
-        
-        <div className="flex border-b">
-          <button 
-            className={`flex-1 py-3 px-4 font-medium text-center ${activeTab === 'all' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500 hover:text-gray-700'}`} 
-            onClick={() => setActiveTab('all')}
-          >
-            All
-          </button>
-          <button 
-            className={`flex-1 py-3 px-4 font-medium text-center ${activeTab === 'unread' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500 hover:text-gray-700'}`}
-            onClick={() => setActiveTab('unread')}
-          >
-            Unread
-          </button>
-        </div>
-        
-        <div className="px-6 py-4 flex justify-between items-center border-b">
-          <h2 className="text-lg font-medium text-gray-800">Your Notifications</h2>
-          <button 
-            onClick={handleMarkAllAsRead}
-            className="text-sm text-indigo-600 hover:text-indigo-800 transition duration-300"
-          >
-            Mark all as read
-          </button>
-        </div>
-        
-        <div className="divide-y divide-gray-200">
-          {loading ? (
-            <div className="flex justify-center items-center py-20">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
-            </div>
-          ) : notifications.length === 0 ? (
-            <div className="py-20 text-center text-gray-500">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-              </svg>
-              <p className="mt-4">No {activeTab === 'unread' ? 'unread ' : ''}notifications found</p>
-            </div>
-          ) : (
-            <ul>
-              {notifications.map(notification => (
-                <li key={notification.id} className={`p-6 hover:bg-gray-50 ${notification.read ? '' : 'bg-indigo-50'}`}>
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0">
-                      {getNotificationTypeIcon(notification.type)}
-                    </div>
-                    
-                    <div 
-                      className="ml-4 flex-grow cursor-pointer"
-                      onClick={() => handleNotificationClick(notification)}
-                    >
-                      <div className="font-medium text-gray-900">{notification.title}</div>
-                      <div className="text-gray-600">{notification.message}</div>
-                      <div className="text-sm text-gray-500 mt-1">{formatDate(notification.createdAt)}</div>
-                    </div>
-                    
-                    <div className="flex-shrink-0 ml-4">
-                      <div className="relative">
-                        <button
-                          className="text-gray-400 hover:text-gray-600 focus:outline-none"
-                          onClick={() => {
-                            const dropdown = document.getElementById(`dropdown-${notification.id}`);
-                            dropdown.classList.toggle('hidden');
-                          }}
-                        >
-                          <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                          </svg>
-                        </button>
+    <div className="w-full min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="bg-white shadow-lg rounded-lg overflow-hidden w-full">
+          <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-8 text-white">
+            <h1 className="text-3xl font-bold">Notifications</h1>
+            <p className="text-indigo-100">Stay updated with your latest activities</p>
+          </div>
+          
+          <div className="flex border-b">
+            <button 
+              className={`flex-1 py-4 px-4 font-medium text-center text-lg ${activeTab === 'all' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500 hover:text-gray-700'}`} 
+              onClick={() => setActiveTab('all')}
+            >
+              All
+            </button>
+            <button 
+              className={`flex-1 py-4 px-4 font-medium text-center text-lg ${activeTab === 'unread' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500 hover:text-gray-700'}`}
+              onClick={() => setActiveTab('unread')}
+            >
+              Unread
+            </button>
+          </div>
+          
+          <div className="px-6 py-5 flex justify-between items-center border-b">
+            <h2 className="text-xl font-medium text-gray-800">Your Notifications</h2>
+            <button 
+              onClick={(e) => handleMarkAllAsRead(e)}
+              className="text-base text-indigo-600 hover:text-indigo-800 transition duration-300 font-medium"
+            >
+              Mark all as read
+            </button>
+          </div>
+          
+          <div className="divide-y divide-gray-200">
+            {loading ? (
+              <div className="flex justify-center items-center py-32">
+                <div className="animate-spin rounded-full h-14 w-14 border-t-2 border-b-2 border-indigo-500"></div>
+              </div>
+            ) : notifications.length === 0 ? (
+              <div className="py-32 text-center text-gray-500">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-20 w-20 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+                <p className="mt-4 text-lg">No {activeTab === 'unread' ? 'unread ' : ''}notifications found</p>
+              </div>
+            ) : (
+              <ul className="overflow-y-auto max-h-[calc(100vh-280px)]">
+                {notifications.map(notification => (
+                  <li key={notification.id} className={`p-6 hover:bg-gray-50 ${notification.read ? '' : 'bg-indigo-50'}`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center flex-grow">
+                        <div className="flex-shrink-0">
+                          {getNotificationTypeIcon(notification.type)}
+                        </div>
                         
-                        <div id={`dropdown-${notification.id}`} className="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg z-10 py-1">
-                          {notification.read ? (
-                            <button 
-                              onClick={() => handleMarkAsUnread(notification.id)}
-                              className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50"
-                            >
-                              Mark as unread
-                            </button>
-                          ) : (
-                            <button 
-                              onClick={() => handleMarkAsRead(notification.id)}
-                              className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50"
-                            >
-                              Mark as read
-                            </button>
-                          )}
-                          <button 
-                            onClick={() => handleDelete(notification.id)}
-                            className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                        <div 
+                          className="ml-4 flex-grow cursor-pointer"
+                          onClick={() => handleNotificationClick(notification)}
+                        >
+                          <div className="font-medium text-gray-900 text-base">{notification.title}</div>
+                          <div className="text-gray-600 text-base">{notification.message}</div>
+                          <div className="text-sm text-gray-500 mt-2">{formatDate(notification.createdAt)}</div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center">
+                        {notification.senderUserId && (
+                          <button
+                            onClick={() => handleFollowUser(notification.senderUserId)}
+                            className="mr-4 px-4 py-2 rounded-full text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 transition duration-200 ease-in-out shadow-sm"
                           >
-                            Delete notification
+                            {followStatus[notification.senderUserId] ? 'Following' : 'Follow'}
                           </button>
+                        )}
+                        
+                        <div className="flex-shrink-0 relative" ref={dropdownRef}>
+                          <button
+                            className="text-gray-400 hover:text-gray-600 focus:outline-none p-2 rounded-full hover:bg-gray-100 border border-gray-200"
+                            onClick={(e) => toggleDropdown(notification.id, e)}
+                            aria-label="Notification options"
+                          >
+                            <svg className="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                            </svg>
+                          </button>
+                          
+                          {openDropdownId === notification.id && (
+                            <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl z-50 py-1 border border-gray-200">
+                              {notification.read ? (
+                                <button 
+                                  onClick={(e) => {
+                                    handleMarkAsUnread(notification.id, e);
+                                    setOpenDropdownId(null);
+                                  }}
+                                  className="block w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 border-b border-gray-100"
+                                >
+                                  Mark as unread
+                                </button>
+                              ) : (
+                                <button 
+                                  onClick={(e) => {
+                                    handleMarkAsRead(notification.id, e);
+                                    setOpenDropdownId(null);
+                                  }}
+                                  className="block w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 border-b border-gray-100"
+                                >
+                                  Mark as read
+                                </button>
+                              )}
+                              <button 
+                                onClick={(e) => {
+                                  handleDelete(notification.id, e);
+                                  setOpenDropdownId(null);
+                                }}
+                                className="block w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50"
+                              >
+                                Delete notification
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
       </div>
     </div>
