@@ -137,15 +137,6 @@ const PostCard = ({ post, userId, detailed = false }) => {
               {showComments ? 'Hide Comments' : 'Show Comments'}
             </button>
           )}
-          
-          {!detailed && (
-            <Link
-              to={`/post/${post.id}`}
-              className="text-blue-500 hover:text-blue-700 text-sm"
-            >
-              View Details
-            </Link>
-          )}
         </div>
       </div>
       
