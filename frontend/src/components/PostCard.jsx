@@ -73,6 +73,31 @@ const PostCard = ({ post, userId, detailed = false }) => {
             {post.createdAt && new Date(post.createdAt).toLocaleDateString()}
           </p>
         </div>
+        <div className="relative">
+          <button 
+            onClick={() => setShowDropdown(!showDropdown)}
+            className="flex items-center justify-center w-8 h-8 text-gray-600 hover:text-gray-800"
+          >
+            <svg width="16" height="4" viewBox="0 0 16 4" fill="currentColor">
+              <circle cx="2" cy="2" r="2"/>
+              <circle cx="8" cy="2" r="2"/>
+              <circle cx="14" cy="2" r="2"/>
+            </svg>
+          </button>
+          
+          {showDropdown && (
+            <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10 border">
+              <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2">
+                <span className="material-icons text-base">edit</span>
+                Edit Post
+              </button>
+              <button className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 flex items-center gap-2">
+                <span className="material-icons text-base text-red-600">delete</span>
+                Delete Post
+              </button>
+            </div>
+          )}
+        </div>
       </div>
       
       {/* Post content */}
