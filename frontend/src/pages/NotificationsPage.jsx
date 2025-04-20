@@ -9,6 +9,7 @@ const NotificationsPage = () => {
   const [activeTab, setActiveTab] = useState('all'); // 'all' or 'unread'
   const [openDropdownId, setOpenDropdownId] = useState(null);
   const [followStatus, setFollowStatus] = useState({});
+  const [followingInProgress, setFollowingInProgress] = useState(null); // Track button being clicked
   const { currentUser } = useUser();
   const navigate = useNavigate();
   const dropdownRef = useRef(null);
@@ -32,15 +33,6 @@ const NotificationsPage = () => {
     };
   }, [dropdownRef]);
 
-  useEffect(() => {
-    if (currentUser && notifications.length > 0) {
-      console.log("Checking for follow status with notifications:", 
-        notifications.filter(n => n.senderUserId && n.senderUserId !== currentUser.id)
-      );
-      fetchFollowStatus();
-    }
-  }, [currentUser, notifications]);
-
   const fetchNotifications = async () => {
     if (!currentUser) return;
     
@@ -53,9 +45,31 @@ const NotificationsPage = () => {
       const response = await axios.get(endpoint);
       const notificationsData = response.data || [];
       
-      console.log("Fetched notifications:", notificationsData);
+      const processedNotifications = notificationsData.map(notification => {
+        let userIdToFollow = null;
+        
+        if (notification.type === 'FOLLOW') {
+          userIdToFollow = notification.relatedItemId;
+        } else if (notification.type === 'COMMENT' || notification.type === 'LIKE') {
+          userIdToFollow = notification.relatedItemId;
+        }
+        
+        return {
+          ...notification,
+          userIdToFollow: userIdToFollow
+        };
+      });
       
-      setNotifications(notificationsData);
+      setNotifications(processedNotifications);
+      
+      const userIdsToCheck = processedNotifications
+        .filter(n => n.userIdToFollow && n.userIdToFollow !== currentUser.id)
+        .map(n => n.userIdToFollow);
+      
+      if (userIdsToCheck.length > 0) {
+        const uniqueUserIds = [...new Set(userIdsToCheck)];
+        fetchFollowStatusForUsers(uniqueUserIds);
+      }
     } catch (error) {
       console.error('Error fetching notifications:', error);
       alert('Failed to load notifications. Please try again.');
@@ -64,28 +78,19 @@ const NotificationsPage = () => {
     }
   };
 
-  const fetchFollowStatus = async () => {
-    if (!currentUser) return;
+  const fetchFollowStatusForUsers = async (userIds) => {
+    if (!currentUser || userIds.length === 0) return;
     
     try {
-      const userIds = notifications
-        .filter(n => n.senderUserId && n.senderUserId !== currentUser.id)
-        .map(n => n.senderUserId);
-      
-      const uniqueUserIds = [...new Set(userIds)];
-      
-      if (uniqueUserIds.length === 0) return;
-      
       const statusMap = {};
       
-      await Promise.all(uniqueUserIds.map(async (userId) => {
+      await Promise.all(userIds.map(async (userId) => {
         try {
           const response = await axios.get(
             `http://localhost:8081/api/users/${currentUser.id}/following/${userId}`
           );
           statusMap[userId] = response.data;
         } catch (error) {
-          console.error(`Error checking follow status for user ${userId}:`, error);
           statusMap[userId] = false;
         }
       }));
@@ -93,6 +98,39 @@ const NotificationsPage = () => {
       setFollowStatus(statusMap);
     } catch (error) {
       console.error('Error fetching follow status:', error);
+    }
+  };
+
+  const handleFollowUser = async (userId) => {
+    if (!currentUser || userId === currentUser.id || !userId) return;
+    
+    if (followingInProgress === userId) return;
+    
+    setFollowingInProgress(userId);
+    
+    try {
+      const isCurrentlyFollowing = followStatus[userId];
+      
+      if (isCurrentlyFollowing) {
+        await axios.delete(`http://localhost:8081/api/users/${currentUser.id}/unfollow/${userId}`);
+        
+        setFollowStatus(prev => ({
+          ...prev,
+          [userId]: false
+        }));
+      } else {
+        await axios.post(`http://localhost:8081/api/users/${currentUser.id}/follow/${userId}`);
+        
+        setFollowStatus(prev => ({
+          ...prev,
+          [userId]: true
+        }));
+      }
+    } catch (error) {
+      console.error('Error following/unfollowing user:', error);
+      alert('Failed to update follow status. Please try again.');
+    } finally {
+      setFollowingInProgress(null);
     }
   };
 
@@ -142,23 +180,6 @@ const NotificationsPage = () => {
     } catch (error) {
       console.error('Error deleting notification:', error);
       alert('Failed to delete notification.');
-    }
-  };
-
-  const handleFollowUser = async (userId) => {
-    if (!currentUser || userId === currentUser.id) return;
-    
-    try {
-      if (followStatus[userId]) {
-        await axios.delete(`http://localhost:8081/api/users/${currentUser.id}/unfollow/${userId}`);
-        setFollowStatus(prev => ({...prev, [userId]: false}));
-      } else {
-        await axios.post(`http://localhost:8081/api/users/${currentUser.id}/follow/${userId}`);
-        setFollowStatus(prev => ({...prev, [userId]: true}));
-      }
-    } catch (error) {
-      console.error('Error following/unfollowing user:', error);
-      alert('Failed to update follow status.');
     }
   };
 
@@ -312,14 +333,13 @@ const NotificationsPage = () => {
                       </div>
                       
                       <div className="flex items-center">
-                        {notification.senderUserId && (
-                          <button
-                            onClick={() => handleFollowUser(notification.senderUserId)}
-                            className="mr-4 px-4 py-2 rounded-full text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 transition duration-200 ease-in-out shadow-sm"
-                          >
-                            {followStatus[notification.senderUserId] ? 'Following' : 'Follow'}
-                          </button>
-                        )}
+                        {/* Always show follow button for testing */}
+                        <button
+                          onClick={() => handleFollowUser(notification.relatedItemId || notification.id)}
+                          className="mr-4 px-4 py-2 rounded-full text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 transition duration-200 ease-in-out shadow-sm"
+                        >
+                          Follow
+                        </button>
                         
                         <div className="flex-shrink-0 relative" ref={dropdownRef}>
                           <button
