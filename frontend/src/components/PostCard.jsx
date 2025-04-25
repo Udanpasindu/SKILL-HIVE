@@ -4,16 +4,19 @@ import LikeButton from './LikeButton';
 import CommentList from './CommentList';
 import CommentForm from './CommentForm';
 import useWebSocket from '../hooks/useWebSocket';
-import { getUser, deletePost } from '../services/api';
+import { getUser, deletePost, editPost } from '../services/api';
 
 const PostCard = ({ post, userId, detailed = false, onDelete }) => {
   const [authorName, setAuthorName] = useState('');
   const [showComments, setShowComments] = useState(detailed);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [newImages, setNewImages] = useState([]);
+  const [newVideo, setNewVideo] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(post.content);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteSuccess, setDeleteSuccess] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   
   // Use WebSocket for real-time updates
   const { likeCount: wsLikeCount, comments: wsComments, addLocalComment } = useWebSocket(post.id);
@@ -69,41 +72,62 @@ const PostCard = ({ post, userId, detailed = false, onDelete }) => {
   const handleEdit = () => {
     setIsEditing(true);
     setShowDropdown(false);
+    setNewImages([]);
+    setNewVideo(null);
   };
 
   const handleSaveEdit = async () => {
     try {
-      const response = await fetch(`/api/posts/${post.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          content: editedContent
-        }),
-      });
+      const formData = new FormData();
+      formData.append('userId', post.userId);
+      formData.append('title', post.title);
+      formData.append('content', editedContent);
+      
+      // Handle images
+      if (newImages && newImages.length > 0) {
+        newImages.forEach(image => {
+          formData.append('images', image);
+        });
+      }
+      
+      // Handle video
+      if (newVideo) {
+        formData.append('video', newVideo);
+      }
 
-      if (response.ok) {
-        post.content = editedContent;
+      const updatedPost = await editPost(post.id, formData);
+      
+      if (updatedPost) {
+        // Update local post state
+        Object.assign(post, {
+          content: editedContent,
+          imageUrls: updatedPost.imageUrls || post.imageUrls,
+          videoUrl: updatedPost.videoUrl || post.videoUrl
+        });
+        
+        // Reset form state
         setIsEditing(false);
-      } else {
-        console.error('Failed to update post');
+        setNewImages([]);
+        setNewVideo(null);
       }
     } catch (error) {
       console.error('Error updating post:', error);
+      alert(error.response?.data?.message || 'Failed to update post. Please try again.');
     }
   };
 
   const handleCancelEdit = () => {
     setIsEditing(false);
     setEditedContent(post.content);
+    setNewImages([]);
+    setNewVideo(null);
   };
 
   const handleDelete = async () => {
     if (window.confirm('Are you sure you want to delete this post?')) {
       try {
         setIsDeleting(true);
-        await deletePost(post.id);
+        await deletePost(post.id, userId);
         setDeleteSuccess(true);
         setShowDropdown(false);
         
@@ -118,7 +142,7 @@ const PostCard = ({ post, userId, detailed = false, onDelete }) => {
         }, 2000);
       } catch (error) {
         console.error('Error deleting post:', error);
-        alert('Failed to delete post. Please try again.');
+        alert(error.response?.data?.message || 'Failed to delete post. Please try again.');
       } finally {
         setIsDeleting(false);
       }
@@ -132,6 +156,40 @@ const PostCard = ({ post, userId, detailed = false, onDelete }) => {
       </div>
     );
   }
+
+  // Helper function to check if post has media
+  const hasMedia = () => {
+    return (post.imageUrls && post.imageUrls.length > 0) || post.videoUrl;
+  };
+  
+  // Navigate to next image
+  const nextImage = () => {
+    setCurrentImageIndex((prev) => 
+      prev === post.imageUrls.length - 1 ? 0 : prev + 1
+    );
+  };
+  
+  // Navigate to previous image
+  const prevImage = () => {
+    setCurrentImageIndex((prev) => 
+      prev === 0 ? post.imageUrls.length - 1 : prev - 1
+    );
+  };
+
+  const handleImageChange = (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length + newImages.length > 3) {
+      alert('Maximum 3 images allowed');
+      return;
+    }
+    setNewImages([...newImages, ...files]);
+  };
+
+  const handleVideoChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setNewVideo(file);
+  };
 
   return (
     <div className="bg-white rounded-lg shadow-md p-4 mb-4">
@@ -190,6 +248,31 @@ const PostCard = ({ post, userId, detailed = false, onDelete }) => {
               className="w-full p-2 border rounded-md"
               rows="4"
             />
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Add/Replace Images (Max 3)
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                multiple
+                className="w-full p-2 border rounded-md"
+                disabled={newImages.length >= 3}
+              />
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Add/Replace Video
+              </label>
+              <input
+                type="file"
+                accept="video/*"
+                onChange={handleVideoChange}
+                className="w-full p-2 border rounded-md"
+                disabled={!!newVideo}
+              />
+            </div>
             <div className="flex gap-2">
               <button
                 onClick={handleSaveEdit}
@@ -209,6 +292,64 @@ const PostCard = ({ post, userId, detailed = false, onDelete }) => {
           <p className="text-gray-800">{post.content}</p>
         )}
       </div>
+      
+      {/* Media section */}
+      {hasMedia() && (
+        <div className="mb-4">
+          {/* Video */}
+          {post.videoUrl && (
+            <div className="mb-3">
+              <video 
+                controls 
+                className="w-full h-auto rounded-lg"
+                src={`http://localhost:8081${post.videoUrl}`}
+              >
+                Your browser does not support the video tag.
+              </video>
+            </div>
+          )}
+          
+          {/* Images */}
+          {post.imageUrls && post.imageUrls.length > 0 && (
+            <div className="relative">
+              <img
+                src={`http://localhost:8081${post.imageUrls[currentImageIndex]}`}
+                alt={`Post image ${currentImageIndex + 1}`}
+                className="w-full h-auto rounded-lg"
+              />
+              
+              {/* Image navigation */}
+              {post.imageUrls.length > 1 && (
+                <>
+                  <button 
+                    onClick={prevImage} 
+                    className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white rounded-full w-8 h-8 flex items-center justify-center"
+                  >
+                    &lt;
+                  </button>
+                  <button 
+                    onClick={nextImage} 
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white rounded-full w-8 h-8 flex items-center justify-center"
+                  >
+                    &gt;
+                  </button>
+                  
+                  {/* Image indicators */}
+                  <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-1">
+                    {post.imageUrls.map((_, index) => (
+                      <button 
+                        key={index}
+                        onClick={() => setCurrentImageIndex(index)}
+                        className={`w-2 h-2 rounded-full ${index === currentImageIndex ? 'bg-white' : 'bg-gray-400'}`}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      )}
       
       {/* Post actions */}
       <div className="flex justify-between items-center border-t border-b py-2 my-2">
