@@ -9,6 +9,7 @@ import com.university.skillshare_backend.dto.UserUpdateRequest;
 import com.university.skillshare_backend.exception.ResourceNotFoundException;
 import com.university.skillshare_backend.model.User;
 import com.university.skillshare_backend.repository.UserRepository;
+import com.university.skillshare_backend.service.UserService;
 
 import java.util.HashMap;
 import java.util.List;
@@ -20,12 +21,14 @@ import java.util.Map;
 public class UserController {
 
     private final UserRepository userRepository;
-    
+    private final UserService userService;
+
     @Autowired
-    public UserController(UserRepository userRepository) {
+    public UserController(UserRepository userRepository, UserService userService) {
         this.userRepository = userRepository;
+        this.userService = userService;
     }
-    
+
     /**
      * Create a new user
      * 
@@ -37,7 +40,7 @@ public class UserController {
         User savedUser = userRepository.save(user);
         return new ResponseEntity<>(savedUser, HttpStatus.CREATED);
     }
-    
+
     /**
      * Search for users by username fragment (for @mentions)
      * 
@@ -49,7 +52,7 @@ public class UserController {
         List<User> users = userRepository.findByUsernameContaining(query);
         return ResponseEntity.ok(users);
     }
-    
+
     /**
      * Get all users
      * 
@@ -60,7 +63,7 @@ public class UserController {
         List<User> users = userRepository.findAll();
         return ResponseEntity.ok(users);
     }
-    
+
     /**
      * Get user by ID
      * 
@@ -73,7 +76,7 @@ public class UserController {
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
         return ResponseEntity.ok(user);
     }
-    
+
     /**
      * Get user by username
      * 
@@ -86,7 +89,7 @@ public class UserController {
                 .orElseThrow(() -> new ResourceNotFoundException("User", "username", username));
         return ResponseEntity.ok(user);
     }
-    
+
     /**
      * Update user profile
      * 
@@ -98,9 +101,9 @@ public class UserController {
     public ResponseEntity<?> updateUser(@PathVariable String userId, @RequestBody UserUpdateRequest userUpdateRequest) {
         User existingUser = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
-        
+
         // Check if username is changed and not already taken
-        if (userUpdateRequest.getUsername() != null && 
+        if (userUpdateRequest.getUsername() != null &&
             !userUpdateRequest.getUsername().equals(existingUser.getUsername())) {
             if (userRepository.findByUsername(userUpdateRequest.getUsername()).isPresent()) {
                 Map<String, String> response = new HashMap<>();
@@ -109,9 +112,9 @@ public class UserController {
             }
             existingUser.setUsername(userUpdateRequest.getUsername());
         }
-        
+
         // Check if email is changed and not already taken
-        if (userUpdateRequest.getEmail() != null && 
+        if (userUpdateRequest.getEmail() != null &&
             !userUpdateRequest.getEmail().equals(existingUser.getEmail())) {
             if (userRepository.findByEmail(userUpdateRequest.getEmail()).isPresent()) {
                 Map<String, String> response = new HashMap<>();
@@ -120,15 +123,77 @@ public class UserController {
             }
             existingUser.setEmail(userUpdateRequest.getEmail());
         }
-        
+
         // Update other fields
         if (userUpdateRequest.getFullName() != null) {
             existingUser.setFullName(userUpdateRequest.getFullName());
         }
-        
+
         User updatedUser = userRepository.save(existingUser);
         updatedUser.setPassword(null); // Don't return password
-        
+
         return ResponseEntity.ok(updatedUser);
+    }
+
+    /**
+     * Follow a user
+     * 
+     * @param followerId The ID of the user who is following
+     * @param userId The ID of the user to follow
+     * @return Response indicating success or failure
+     */
+    @PostMapping("/users/{followerId}/follow/{userId}")
+    public ResponseEntity<Map<String, Object>> followUser(
+            @PathVariable String followerId,
+            @PathVariable String userId) {
+
+        boolean result = userService.followUser(followerId, userId);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", result);
+        response.put("followerId", followerId);
+        response.put("userId", userId);
+        response.put("following", true);
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Unfollow a user
+     * 
+     * @param followerId The ID of the user who is unfollowing
+     * @param userId The ID of the user to unfollow
+     * @return Response indicating success or failure
+     */
+    @DeleteMapping("/users/{followerId}/unfollow/{userId}")
+    public ResponseEntity<Map<String, Object>> unfollowUser(
+            @PathVariable String followerId,
+            @PathVariable String userId) {
+
+        boolean result = userService.unfollowUser(followerId, userId);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", result);
+        response.put("followerId", followerId);
+        response.put("userId", userId);
+        response.put("following", false);
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Check if a user is following another user
+     * 
+     * @param followerId The ID of the potential follower
+     * @param userId The ID of the user to check
+     * @return Boolean indicating follow status
+     */
+    @GetMapping("/users/{followerId}/following/{userId}")
+    public ResponseEntity<Boolean> isFollowing(
+            @PathVariable String followerId,
+            @PathVariable String userId) {
+
+        boolean isFollowing = userService.isFollowing(followerId, userId);
+        return ResponseEntity.ok(isFollowing);
     }
 }

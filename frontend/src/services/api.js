@@ -114,3 +114,36 @@ export const searchUsers = async (query) => {
     throw error;
   }
 };
+
+// Follow user
+export const followUser = async (followerId, userId) => {
+  try {
+    const response = await api.post(`/users/${followerId}/follow/${userId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error following user:', error);
+    throw error;
+  }
+};
+
+// Unfollow user
+export const unfollowUser = async (followerId, userId) => {
+  try {
+    const response = await api.delete(`/users/${followerId}/unfollow/${userId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error unfollowing user:', error);
+    throw error;
+  }
+};
+
+// Check if user is following another user
+export const isFollowing = async (followerId, userId) => {
+  try {
+    const response = await api.get(`/users/${followerId}/following/${userId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error checking follow status:', error);
+    return false;
+  }
+};

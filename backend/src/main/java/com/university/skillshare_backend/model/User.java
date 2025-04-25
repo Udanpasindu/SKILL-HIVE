@@ -5,6 +5,8 @@ import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.Set;
+
 @Document(collection = "users")
 public class User {
     @Id
@@ -22,6 +24,9 @@ public class User {
     private String password;
     
     private String profileImage;
+    
+    private Set<String> followers; // IDs of users following this user
+    private Set<String> following; // IDs of users this user follows
     
     // Standard getters and setters
     public String getId() {
@@ -70,5 +75,21 @@ public class User {
     
     public void setProfileImage(String profileImage) {
         this.profileImage = profileImage;
+    }
+    
+    public Set<String> getFollowers() {
+        return followers;
+    }
+    
+    public void setFollowers(Set<String> followers) {
+        this.followers = followers;
+    }
+    
+    public Set<String> getFollowing() {
+        return following;
+    }
+    
+    public void setFollowing(Set<String> following) {
+        this.following = following;
     }
 }

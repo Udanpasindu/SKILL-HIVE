@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useUser } from '../contexts/UserContext';
+import FollowButton from '../components/FollowButton';
 import axios from 'axios';
 
 const ProfilePage = () => {
@@ -13,6 +14,8 @@ const ProfilePage = () => {
   const [message, setMessage] = useState({ type: '', text: '' });
   const [userPosts, setUserPosts] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [followerCount, setFollowerCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
   
   useEffect(() => {
     if (currentUser) {
@@ -35,7 +38,21 @@ const ProfilePage = () => {
         }
       };
       
+      // Fetch follower and following counts
+      const fetchFollowCounts = async () => {
+        try {
+          const followerResponse = await axios.get(`http://localhost:8081/api/users/${currentUser.id}/followers/count`);
+          const followingResponse = await axios.get(`http://localhost:8081/api/users/${currentUser.id}/following/count`);
+          
+          setFollowerCount(followerResponse.data);
+          setFollowingCount(followingResponse.data);
+        } catch (error) {
+          console.error('Error fetching follow counts:', error);
+        }
+      };
+      
       fetchUserPosts();
+      fetchFollowCounts();
     }
   }, [currentUser]);
   
@@ -78,11 +95,25 @@ const ProfilePage = () => {
   };
   
   return (
-    <div className="container mx-auto max-w-4xl px-4 py-8">
-      <div className="bg-white shadow-lg rounded-lg overflow-hidden mb-8">
-        <div className="bg-gradient-to-r from-purple-500 to-indigo-600 px-6 py-8 text-white">
-          <h1 className="text-3xl font-bold">My Profile</h1>
-          <p className="text-indigo-100">Manage your personal information and posts</p>
+    <div className="max-w-4xl mx-auto mt-8 p-4 space-y-8">
+      <div className="bg-white shadow-lg rounded-lg overflow-hidden">
+        <div className="bg-gradient-to-r from-blue-500 to-indigo-600 px-6 py-8">
+          <div className="flex justify-between items-center">
+            <h1 className="text-3xl font-bold text-white">My Profile</h1>
+            {/* Only show on other users' profiles */}
+            {false && <FollowButton userId={currentUser?.id} />}
+          </div>
+          
+          <div className="flex mt-4 text-white">
+            <div className="mr-8">
+              <span className="block text-2xl font-bold">{followerCount}</span>
+              <span className="text-sm opacity-80">Followers</span>
+            </div>
+            <div>
+              <span className="block text-2xl font-bold">{followingCount}</span>
+              <span className="text-sm opacity-80">Following</span>
+            </div>
+          </div>
         </div>
         
         <div className="p-6">

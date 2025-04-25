@@ -50,4 +50,18 @@ public class WebSocketController {
         message.put("timestamp", System.currentTimeMillis());
         return message;
     }
+
+    /**
+     * Handle follow events via WebSocket
+     * 
+     * @param message Message containing userId and followerId
+     * @return Message to broadcast
+     */
+    @MessageMapping("/follow")
+    @SendTo("/topic/follow")
+    public Map<String, Object> handleFollow(@Payload Map<String, Object> message) {
+        // Add timestamp to the message
+        message.put("timestamp", System.currentTimeMillis());
+        return message;
+    }
 }

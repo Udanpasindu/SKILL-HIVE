@@ -50,4 +50,36 @@ public class WebSocketService {
     public void broadcastCommentUpdate(String postId, Object comment) {
         messagingTemplate.convertAndSend("/topic/comments/" + postId + "/updates", comment);
     }
+    
+    /**
+     * Broadcast a follow event to the followed user
+     * 
+     * @param userId The ID of the user being followed
+     * @param followerId The ID of the user who is following
+     */
+    public void broadcastFollowEvent(String userId, String followerId) {
+        Map<String, Object> message = new HashMap<>();
+        message.put("type", "FOLLOW");
+        message.put("userId", userId);
+        message.put("followerId", followerId);
+        message.put("timestamp", System.currentTimeMillis());
+        
+        messagingTemplate.convertAndSend("/topic/follow/" + userId, message);
+    }
+    
+    /**
+     * Broadcast an unfollow event to the unfollowed user
+     * 
+     * @param userId The ID of the user being unfollowed
+     * @param followerId The ID of the user who is unfollowing
+     */
+    public void broadcastUnfollowEvent(String userId, String followerId) {
+        Map<String, Object> message = new HashMap<>();
+        message.put("type", "UNFOLLOW");
+        message.put("userId", userId);
+        message.put("followerId", followerId);
+        message.put("timestamp", System.currentTimeMillis());
+        
+        messagingTemplate.convertAndSend("/topic/follow/" + userId, message);
+    }
 }

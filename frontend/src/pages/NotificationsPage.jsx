@@ -8,8 +8,6 @@ const NotificationsPage = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all'); // 'all' or 'unread'
   const [openDropdownId, setOpenDropdownId] = useState(null);
-  const [followStatus, setFollowStatus] = useState({});
-  const [followingInProgress, setFollowingInProgress] = useState(null); // Track button being clicked
   const { currentUser } = useUser();
   const navigate = useNavigate();
   const dropdownRef = useRef(null);
@@ -46,91 +44,17 @@ const NotificationsPage = () => {
       const notificationsData = response.data || [];
       
       const processedNotifications = notificationsData.map(notification => {
-        let userIdToFollow = null;
-        
-        if (notification.type === 'FOLLOW') {
-          userIdToFollow = notification.relatedItemId;
-        } else if (notification.type === 'COMMENT' || notification.type === 'LIKE') {
-          userIdToFollow = notification.relatedItemId;
-        }
-        
         return {
-          ...notification,
-          userIdToFollow: userIdToFollow
+          ...notification
         };
       });
       
       setNotifications(processedNotifications);
-      
-      const userIdsToCheck = processedNotifications
-        .filter(n => n.userIdToFollow && n.userIdToFollow !== currentUser.id)
-        .map(n => n.userIdToFollow);
-      
-      if (userIdsToCheck.length > 0) {
-        const uniqueUserIds = [...new Set(userIdsToCheck)];
-        fetchFollowStatusForUsers(uniqueUserIds);
-      }
     } catch (error) {
       console.error('Error fetching notifications:', error);
       alert('Failed to load notifications. Please try again.');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchFollowStatusForUsers = async (userIds) => {
-    if (!currentUser || userIds.length === 0) return;
-    
-    try {
-      const statusMap = {};
-      
-      await Promise.all(userIds.map(async (userId) => {
-        try {
-          const response = await axios.get(
-            `http://localhost:8081/api/users/${currentUser.id}/following/${userId}`
-          );
-          statusMap[userId] = response.data;
-        } catch (error) {
-          statusMap[userId] = false;
-        }
-      }));
-      
-      setFollowStatus(statusMap);
-    } catch (error) {
-      console.error('Error fetching follow status:', error);
-    }
-  };
-
-  const handleFollowUser = async (userId) => {
-    if (!currentUser || userId === currentUser.id || !userId) return;
-    
-    if (followingInProgress === userId) return;
-    
-    setFollowingInProgress(userId);
-    
-    try {
-      const isCurrentlyFollowing = followStatus[userId];
-      
-      if (isCurrentlyFollowing) {
-        await axios.delete(`http://localhost:8081/api/users/${currentUser.id}/unfollow/${userId}`);
-        
-        setFollowStatus(prev => ({
-          ...prev,
-          [userId]: false
-        }));
-      } else {
-        await axios.post(`http://localhost:8081/api/users/${currentUser.id}/follow/${userId}`);
-        
-        setFollowStatus(prev => ({
-          ...prev,
-          [userId]: true
-        }));
-      }
-    } catch (error) {
-      console.error('Error following/unfollowing user:', error);
-      alert('Failed to update follow status. Please try again.');
-    } finally {
-      setFollowingInProgress(null);
     }
   };
 
@@ -326,21 +250,17 @@ const NotificationsPage = () => {
                           className="ml-4 flex-grow cursor-pointer"
                           onClick={() => handleNotificationClick(notification)}
                         >
-                          <div className="font-medium text-gray-900 text-base">{notification.title}</div>
-                          <div className="text-gray-600 text-base">{notification.message}</div>
+                          <div className={`text-base ${notification.read ? 'font-normal' : 'font-bold'} text-gray-900`}>
+                            {notification.title}
+                          </div>
+                          <div className={`text-base ${notification.read ? 'font-normal' : 'font-semibold'} text-gray-600`}>
+                            {notification.message}
+                          </div>
                           <div className="text-sm text-gray-500 mt-2">{formatDate(notification.createdAt)}</div>
                         </div>
                       </div>
                       
                       <div className="flex items-center">
-                        {/* Always show follow button for testing */}
-                        <button
-                          onClick={() => handleFollowUser(notification.relatedItemId || notification.id)}
-                          className="mr-4 px-4 py-2 rounded-full text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 transition duration-200 ease-in-out shadow-sm"
-                        >
-                          Follow
-                        </button>
-                        
                         <div className="flex-shrink-0 relative" ref={dropdownRef}>
                           <button
                             className="text-gray-400 hover:text-gray-600 focus:outline-none p-2 rounded-full hover:bg-gray-100 border border-gray-200"

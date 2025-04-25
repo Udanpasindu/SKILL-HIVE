@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import LikeButton from './LikeButton';
 import CommentList from './CommentList';
 import CommentForm from './CommentForm';
+import FollowButton from './FollowButton';
 import useWebSocket from '../hooks/useWebSocket';
 import { getUser } from '../services/api';
 
@@ -72,6 +73,10 @@ const PostCard = ({ post, userId, detailed = false }) => {
             {post.createdAt && new Date(post.createdAt).toLocaleDateString()}
           </p>
         </div>
+        {/* Add Follow Button */}
+        {post.userId && post.userId !== userId && (
+          <FollowButton userId={post.userId} />
+        )}
       </div>
       
       {/* Post content */}
