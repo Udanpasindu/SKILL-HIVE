@@ -124,9 +124,25 @@ export const getUserPosts = async (userId) => {
   return handleResponse(response);
 };
 
-export const deletePost = async (postId) => {
+export const editPost = async (postId, formData) => {
   try {
-    const response = await api.delete(`/posts/${postId}`);
+    // Change from PUT to POST to match backend expected method
+    const response = await api.post(`/posts/${postId}/edit`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      },
+      timeout: 30000 // Increase timeout for large files
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error editing post:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
+export const deletePost = async (postId, userId) => {
+  try {
+    const response = await api.delete(`/posts/${postId}?userId=${userId}`);
     return response.data;
   } catch (error) {
     console.error('Error deleting post:', error);
