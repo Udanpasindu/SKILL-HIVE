@@ -7,7 +7,9 @@ import com.university.skillshare_backend.exception.ResourceNotFoundException;
 import com.university.skillshare_backend.model.User;
 import com.university.skillshare_backend.repository.UserRepository;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 @Service
@@ -115,5 +117,73 @@ public class UserService {
             .orElseThrow(() -> new ResourceNotFoundException("User", "id", followerId));
         
         return follower.getFollowing() != null && follower.getFollowing().contains(userId);
+    }
+
+    /**
+     * Get the number of followers for a user
+     * 
+     * @param userId The ID of the user
+     * @return The follower count
+     */
+    public int getFollowerCount(String userId) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+            
+        return user.getFollowers() != null ? user.getFollowers().size() : 0;
+    }
+    
+    /**
+     * Get the number of users being followed by a user
+     * 
+     * @param userId The ID of the user
+     * @return The following count
+     */
+    public int getFollowingCount(String userId) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+            
+        return user.getFollowing() != null ? user.getFollowing().size() : 0;
+    }
+
+    /**
+     * Get the list of users who follow this user
+     * 
+     * @param userId The ID of the user
+     * @return List of follower users
+     */
+    public List<User> getFollowers(String userId) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+            
+        List<User> followers = new ArrayList<>();
+        if (user.getFollowers() != null && !user.getFollowers().isEmpty()) {
+            // Fetch each follower user by ID
+            for (String followerId : user.getFollowers()) {
+                userRepository.findById(followerId).ifPresent(followers::add);
+            }
+        }
+        
+        return followers;
+    }
+    
+    /**
+     * Get the list of users this user follows
+     * 
+     * @param userId The ID of the user
+     * @return List of following users
+     */
+    public List<User> getFollowing(String userId) {
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+            
+        List<User> following = new ArrayList<>();
+        if (user.getFollowing() != null && !user.getFollowing().isEmpty()) {
+            // Fetch each followed user by ID
+            for (String followedId : user.getFollowing()) {
+                userRepository.findById(followedId).ifPresent(following::add);
+            }
+        }
+        
+        return following;
     }
 }

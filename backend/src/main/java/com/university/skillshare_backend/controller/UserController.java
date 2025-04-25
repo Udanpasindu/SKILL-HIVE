@@ -196,4 +196,52 @@ public class UserController {
         boolean isFollowing = userService.isFollowing(followerId, userId);
         return ResponseEntity.ok(isFollowing);
     }
+
+    /**
+     * Get the count of followers for a user
+     * 
+     * @param userId The ID of the user
+     * @return Number of followers
+     */
+    @GetMapping("/users/{userId}/followers/count")
+    public ResponseEntity<Integer> getFollowerCount(@PathVariable String userId) {
+        int count = userService.getFollowerCount(userId);
+        return ResponseEntity.ok(count);
+    }
+    
+    /**
+     * Get the count of users being followed by a user
+     * 
+     * @param userId The ID of the user
+     * @return Number of users being followed
+     */
+    @GetMapping("/users/{userId}/following/count")
+    public ResponseEntity<Integer> getFollowingCount(@PathVariable String userId) {
+        int count = userService.getFollowingCount(userId);
+        return ResponseEntity.ok(count);
+    }
+
+    /**
+     * Get a list of users who follow a user
+     * 
+     * @param userId The ID of the user
+     * @return List of followers
+     */
+    @GetMapping("/users/{userId}/followers")
+    public ResponseEntity<List<User>> getFollowers(@PathVariable String userId) {
+        List<User> followers = userService.getFollowers(userId);
+        return ResponseEntity.ok(followers);
+    }
+    
+    /**
+     * Get a list of users followed by a user
+     * 
+     * @param userId The ID of the user
+     * @return List of users being followed
+     */
+    @GetMapping("/users/{userId}/following")
+    public ResponseEntity<List<User>> getFollowing(@PathVariable String userId) {
+        List<User> following = userService.getFollowing(userId);
+        return ResponseEntity.ok(following);
+    }
 }
