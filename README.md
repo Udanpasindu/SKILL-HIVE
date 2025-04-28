@@ -11,19 +11,15 @@ Features
 
 ❤️ Like & Comment – Engage with posts by liking and commenting.
 
-🏷️ Categories & Tags – Organize posts with categories and tags.
-
-🔎 Search & Filter – Easily find content using search and filtering options.
-
 🔔 Notifications – Get notified about likes, comments, and new posts.
 
-📊 Dashboard – Monitor user activity and engagement.
+
 
 Tech Stack
 
 Frontend:
 
-React.js (TypeScript)
+React.js (JavaScript )
 
 Tailwind CSS (for styling)
 
