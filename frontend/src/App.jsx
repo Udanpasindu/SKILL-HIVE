@@ -7,6 +7,8 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ProfilePage from './pages/ProfilePage';
 import NotificationsPage from './pages/NotificationsPage';
+import GroupsPage from './pages/GroupsPage';
+import GroupPage from './pages/GroupPage';
 import { useUser } from './contexts/UserContext';
 import './App.css';
 
@@ -46,6 +48,16 @@ function AppRoutes() {
       <Route path="/notifications" element={
         <ProtectedRoute>
           <NotificationsPage />
+        </ProtectedRoute>
+      } />
+      <Route path="/groups" element={
+        <ProtectedRoute>
+          <GroupsPage />
+        </ProtectedRoute>
+      } />
+      <Route path="/groups/:groupId" element={
+        <ProtectedRoute>
+          <GroupPage />
         </ProtectedRoute>
       } />
     </Routes>
