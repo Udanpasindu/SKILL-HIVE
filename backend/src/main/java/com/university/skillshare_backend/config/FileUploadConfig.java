@@ -25,10 +25,9 @@ public class FileUploadConfig implements WebMvcConfigurer {
         try {
             Path uploadPath = Paths.get(uploadDir).toAbsolutePath().normalize();
             Files.createDirectories(uploadPath);
-            
-            // Create subdirectories
             Files.createDirectories(uploadPath.resolve("images"));
             Files.createDirectories(uploadPath.resolve("videos"));
+            Files.createDirectories(uploadPath.resolve("group-photos"));
             
             logger.info("Created upload directories at: {}", uploadPath);
         } catch (IOException e) {
@@ -39,8 +38,10 @@ public class FileUploadConfig implements WebMvcConfigurer {
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        String uploadPath = Paths.get(uploadDir).toAbsolutePath().normalize().toString();
+        
         registry.addResourceHandler("/uploads/**")
-                .addResourceLocations("file:" + Paths.get(uploadDir).toAbsolutePath().normalize().toString() + "/")
+                .addResourceLocations("file:" + uploadPath + "/")
                 .setCachePeriod(3600)
                 .resourceChain(true);
         
