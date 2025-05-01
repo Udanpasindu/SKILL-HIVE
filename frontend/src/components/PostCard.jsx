@@ -4,11 +4,19 @@ import LikeButton from './LikeButton';
 import CommentList from './CommentList';
 import CommentForm from './CommentForm';
 import useWebSocket from '../hooks/useWebSocket';
-import { getUser } from '../services/api';
+import { getUser, deletePost, editPost } from '../services/api';
 
-const PostCard = ({ post, userId, detailed = false }) => {
+const PostCard = ({ post, userId, detailed = false, onDelete }) => {
   const [authorName, setAuthorName] = useState('');
   const [showComments, setShowComments] = useState(detailed);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [newImages, setNewImages] = useState([]);
+  const [newVideo, setNewVideo] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedContent, setEditedContent] = useState(post.content);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteSuccess, setDeleteSuccess] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   
   // Use WebSocket for real-time updates
   const { likeCount: wsLikeCount, comments: wsComments, addLocalComment } = useWebSocket(post.id);
@@ -60,7 +68,129 @@ const PostCard = ({ post, userId, detailed = false }) => {
       setShowComments(prev => !prev);
     }
   };
+
+  const handleEdit = () => {
+    setIsEditing(true);
+    setShowDropdown(false);
+    setNewImages([]);
+    setNewVideo(null);
+  };
+
+  const handleSaveEdit = async () => {
+    try {
+      const formData = new FormData();
+      formData.append('userId', post.userId);
+      formData.append('title', post.title);
+      formData.append('content', editedContent);
+      
+      // Handle images
+      if (newImages && newImages.length > 0) {
+        newImages.forEach(image => {
+          formData.append('images', image);
+        });
+      }
+      
+      // Handle video
+      if (newVideo) {
+        formData.append('video', newVideo);
+      }
+
+      const updatedPost = await editPost(post.id, formData);
+      
+      if (updatedPost) {
+        // Update local post state
+        Object.assign(post, {
+          content: editedContent,
+          imageUrls: updatedPost.imageUrls || post.imageUrls,
+          videoUrl: updatedPost.videoUrl || post.videoUrl
+        });
+        
+        // Reset form state
+        setIsEditing(false);
+        setNewImages([]);
+        setNewVideo(null);
+      }
+    } catch (error) {
+      console.error('Error updating post:', error);
+      alert(error.response?.data?.message || 'Failed to update post. Please try again.');
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditedContent(post.content);
+    setNewImages([]);
+    setNewVideo(null);
+  };
+
+  const handleDelete = async () => {
+    if (window.confirm('Are you sure you want to delete this post?')) {
+      try {
+        setIsDeleting(true);
+        await deletePost(post.id, userId);
+        setDeleteSuccess(true);
+        setShowDropdown(false);
+        
+        // Notify parent component about deletion
+        if (onDelete) {
+          onDelete(post.id);
+        }
+        
+        // Show success message for 2 seconds before removing the post
+        setTimeout(() => {
+          setDeleteSuccess(false);
+        }, 2000);
+      } catch (error) {
+        console.error('Error deleting post:', error);
+        alert(error.response?.data?.message || 'Failed to delete post. Please try again.');
+      } finally {
+        setIsDeleting(false);
+      }
+    }
+  };
+
+  if (deleteSuccess) {
+    return (
+      <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4">
+        <span className="block sm:inline">Post deleted successfully!</span>
+      </div>
+    );
+  }
+
+  // Helper function to check if post has media
+  const hasMedia = () => {
+    return (post.imageUrls && post.imageUrls.length > 0) || post.videoUrl;
+  };
   
+  // Navigate to next image
+  const nextImage = () => {
+    setCurrentImageIndex((prev) => 
+      prev === post.imageUrls.length - 1 ? 0 : prev + 1
+    );
+  };
+  
+  // Navigate to previous image
+  const prevImage = () => {
+    setCurrentImageIndex((prev) => 
+      prev === 0 ? post.imageUrls.length - 1 : prev - 1
+    );
+  };
+
+  const handleImageChange = (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length + newImages.length > 3) {
+      alert('Maximum 3 images allowed');
+      return;
+    }
+    setNewImages([...newImages, ...files]);
+  };
+
+  const handleVideoChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setNewVideo(file);
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-md p-4 mb-4">
       {/* Post header */}
@@ -72,12 +202,154 @@ const PostCard = ({ post, userId, detailed = false }) => {
             {post.createdAt && new Date(post.createdAt).toLocaleDateString()}
           </p>
         </div>
+        <div className="relative">
+          <button 
+            onClick={() => setShowDropdown(!showDropdown)}
+            className="flex items-center justify-center w-8 h-8 text-gray-600 hover:text-gray-800"
+          >
+            <svg width="16" height="4" viewBox="0 0 16 4" fill="currentColor">
+              <circle cx="2" cy="2" r="2"/>
+              <circle cx="8" cy="2" r="2"/>
+              <circle cx="14" cy="2" r="2"/>
+            </svg>
+          </button>
+          
+          {showDropdown && (
+            <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10 border">
+              <button 
+                onClick={handleEdit}
+                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+              >
+                <span className="material-icons text-base">edit</span>
+                Edit Post
+              </button>
+              <button 
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 flex items-center gap-2"
+              >
+                <span className="material-icons text-base text-red-600">
+                  {isDeleting ? 'hourglass_empty' : 'delete'}
+                </span>
+                {isDeleting ? 'Deleting...' : 'Delete Post'}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
       
       {/* Post content */}
       <div className="mb-4">
-        <p className="text-gray-800">{post.content}</p>
+        {isEditing ? (
+          <div className="space-y-2">
+            <textarea
+              value={editedContent}
+              onChange={(e) => setEditedContent(e.target.value)}
+              className="w-full p-2 border rounded-md"
+              rows="4"
+            />
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Add/Replace Images (Max 3)
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                multiple
+                className="w-full p-2 border rounded-md"
+                disabled={newImages.length >= 3}
+              />
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Add/Replace Video
+              </label>
+              <input
+                type="file"
+                accept="video/*"
+                onChange={handleVideoChange}
+                className="w-full p-2 border rounded-md"
+                disabled={!!newVideo}
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={handleSaveEdit}
+                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+              >
+                Save
+              </button>
+              <button
+                onClick={handleCancelEdit}
+                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p className="text-gray-800">{post.content}</p>
+        )}
       </div>
+      
+      {/* Media section */}
+      {hasMedia() && (
+        <div className="mb-4">
+          {/* Video */}
+          {post.videoUrl && (
+            <div className="mb-3">
+              <video 
+                controls 
+                className="w-full h-auto rounded-lg"
+                src={`http://localhost:8081${post.videoUrl}`}
+              >
+                Your browser does not support the video tag.
+              </video>
+            </div>
+          )}
+          
+          {/* Images */}
+          {post.imageUrls && post.imageUrls.length > 0 && (
+            <div className="relative">
+              <img
+                src={`http://localhost:8081${post.imageUrls[currentImageIndex]}`}
+                alt={`Post image ${currentImageIndex + 1}`}
+                className="w-full h-auto rounded-lg"
+              />
+              
+              {/* Image navigation */}
+              {post.imageUrls.length > 1 && (
+                <>
+                  <button 
+                    onClick={prevImage} 
+                    className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white rounded-full w-8 h-8 flex items-center justify-center"
+                  >
+                    &lt;
+                  </button>
+                  <button 
+                    onClick={nextImage} 
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white rounded-full w-8 h-8 flex items-center justify-center"
+                  >
+                    &gt;
+                  </button>
+                  
+                  {/* Image indicators */}
+                  <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-1">
+                    {post.imageUrls.map((_, index) => (
+                      <button 
+                        key={index}
+                        onClick={() => setCurrentImageIndex(index)}
+                        className={`w-2 h-2 rounded-full ${index === currentImageIndex ? 'bg-white' : 'bg-gray-400'}`}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      )}
       
       {/* Post actions */}
       <div className="flex justify-between items-center border-t border-b py-2 my-2">
@@ -88,24 +360,17 @@ const PostCard = ({ post, userId, detailed = false }) => {
           onLikeUpdate={setLocalLikeCount}
         />
         
-        {!detailed && (
-          <button
-            onClick={toggleComments}
-            className="inline-flex items-center gap-2 px-3 py-1 text-gray-600 hover:text-blue-600 text-sm font-medium"
-          >
-            <span className="material-icons text-base">comment</span>
-            {showComments ? 'Hide Comments' : 'Show Comments'}
-          </button>
-        )}
-        
-        {!detailed && (
-          <Link
-            to={`/post/${post.id}`}
-            className="text-blue-500 hover:text-blue-700 text-sm"
-          >
-            View Details
-          </Link>
-        )}
+        <div className="flex gap-2">
+          {!detailed && (
+            <button
+              onClick={toggleComments}
+              className="inline-flex items-center gap-2 px-3 py-1 text-gray-600 hover:text-blue-600 text-sm font-medium"
+            >
+              <span className="material-icons text-base">comment</span>
+              {showComments ? 'Hide Comments' : 'Show Comments'}
+            </button>
+          )}
+        </div>
       </div>
       
       {/* Comments section */}
