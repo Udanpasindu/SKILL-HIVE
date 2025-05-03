@@ -100,7 +100,7 @@ public class NotificationService {
         notification.setUserId(userId);
         notification.setTitle(title);
         notification.setMessage(message);
-        notification.setType(type);
+        notification.setType(type.name()); // Convert enum to string
         notification.setRelatedItemId(relatedItemId);
         notification.setRead(false);
         notification.setCreatedAt(new Date());
@@ -158,5 +158,43 @@ public class NotificationService {
         String title = "New Follower";
         String message = followerName + " started following you";
         return createNotification(userId, title, message, NotificationType.FOLLOW, followerId);
+    }
+    
+    /**
+     * Create a reaction notification
+     */
+    public Notification createReactionNotification(String userId, String reactorName, String postId, String reactionType) {
+        String title;
+        String message;
+        
+        switch (reactionType) {
+            case "LOVE":
+                title = "New Reaction";
+                message = reactorName + " loved your post";
+                break;
+            case "HAHA":
+                title = "New Reaction";
+                message = reactorName + " found your post funny";
+                break;
+            case "WOW":
+                title = "New Reaction";
+                message = reactorName + " was amazed by your post";
+                break;
+            case "SAD":
+                title = "New Reaction";
+                message = reactorName + " felt sad about your post";
+                break;
+            case "ANGRY":
+                title = "New Reaction";
+                message = reactorName + " was angered by your post";
+                break;
+            case "LIKE":
+            default:
+                title = "New Like";
+                message = reactorName + " liked your post";
+                break;
+        }
+        
+        return createNotification(userId, title, message, NotificationType.LIKE, postId);
     }
 }

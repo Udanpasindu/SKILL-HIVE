@@ -5,12 +5,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.nio.file.NoSuchFileException;
 import org.springframework.beans.factory.annotation.Value;
+import java.util.ArrayList;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,8 +32,14 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.university.skillshare_backend.exception.ResourceNotFoundException;
+import com.university.skillshare_backend.model.Group;
+import com.university.skillshare_backend.model.Notification;
 import com.university.skillshare_backend.model.Post;
+import com.university.skillshare_backend.model.SharedPost;
+import com.university.skillshare_backend.repository.GroupRepository;
+import com.university.skillshare_backend.repository.NotificationRepository;
 import com.university.skillshare_backend.repository.PostRepository;
+import com.university.skillshare_backend.repository.SharedPostRepository;
 import com.university.skillshare_backend.repository.UserRepository;
 
 @RestController
@@ -44,11 +52,22 @@ public class PostController {
     
     private final PostRepository postRepository;
     private final UserRepository userRepository;
+    private final GroupRepository groupRepository;
+    private final SharedPostRepository sharedPostRepository;
+    private final NotificationRepository notificationRepository;
     
     @Autowired
-    public PostController(PostRepository postRepository, UserRepository userRepository) {
+    public PostController(
+            PostRepository postRepository, 
+            UserRepository userRepository,
+            GroupRepository groupRepository,
+            SharedPostRepository sharedPostRepository,
+            NotificationRepository notificationRepository) {
         this.postRepository = postRepository;
         this.userRepository = userRepository;
+        this.groupRepository = groupRepository;
+        this.sharedPostRepository = sharedPostRepository;
+        this.notificationRepository = notificationRepository;
     }
     
     /**
@@ -195,6 +214,91 @@ public class PostController {
         response.put("message", "Post deleted successfully");
         
         return ResponseEntity.ok(response);
+    }
+    
+    /**
+     * Share a post to a group
+     * 
+     * @param postId Post ID
+     * @param groupId Group ID
+     * @param userId User ID of the person sharing
+     * @return Success message
+     */
+    @PostMapping("/posts/{postId}/share")
+    public ResponseEntity<Map<String, Object>> sharePost(
+            @PathVariable String postId,
+            @RequestParam String groupId,
+            @RequestParam String userId) {
+        
+        // Find the post
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new ResourceNotFoundException("Post", "id", postId));
+        
+        // Find the group
+        Group group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new ResourceNotFoundException("Group", "id", groupId));
+        
+        // Check if user is a member of the group
+        if (!group.getMembers().contains(userId)) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "User is not a member of the group");
+            return ResponseEntity.badRequest().body(errorResponse);
+        }
+        
+        // Create a shared post entry
+        SharedPost sharedPost = new SharedPost();
+        sharedPost.setPostId(postId);
+        sharedPost.setGroupId(groupId);
+        sharedPost.setSharedBy(userId);
+        sharedPost.setSharedAt(new Date());
+        
+        sharedPostRepository.save(sharedPost);
+        
+        // Create notification for group members
+        for (String memberId : group.getMembers()) {
+            if (!memberId.equals(userId)) { // Don't notify the sharer
+                Notification notification = new Notification();
+                notification.setUserId(memberId);
+                notification.setType("POST_SHARED");
+                notification.setMessage("A new post was shared in " + group.getName());
+                notification.setRelatedItemId(postId);
+                notification.setRead(false);
+                notification.setCreatedAt(new Date());
+                
+                notificationRepository.save(notification);
+            }
+        }
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("message", "Post shared successfully to group: " + group.getName());
+        
+        return ResponseEntity.ok(response);
+    }
+    
+    /**
+     * Get all posts shared in a group
+     * 
+     * @param groupId Group ID
+     * @return List of posts shared in the group
+     */
+    @GetMapping("/groups/{groupId}/posts")
+    public ResponseEntity<List<Post>> getGroupSharedPosts(@PathVariable String groupId) {
+        // Verify group exists
+        groupRepository.findById(groupId)
+            .orElseThrow(() -> new ResourceNotFoundException("Group", "id", groupId));
+            
+        // Get all shared posts for this group
+        List<SharedPost> sharedPosts = sharedPostRepository.findByGroupId(groupId);
+        
+        // Get the actual posts
+        List<Post> posts = new ArrayList<>();
+        for (SharedPost sharedPost : sharedPosts) {
+            postRepository.findById(sharedPost.getPostId()).ifPresent(posts::add);
+        }
+        
+        return ResponseEntity.ok(posts);
     }
     
     /**

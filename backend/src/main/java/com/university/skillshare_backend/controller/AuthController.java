@@ -4,10 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import com.university.skillshare_backend.dto.LoginRequest;
 import com.university.skillshare_backend.dto.RegisterRequest;
@@ -93,5 +90,19 @@ public class AuthController {
         user.setPassword(null);
         
         return new ResponseEntity<>(user, HttpStatus.OK);
+    }
+
+    @GetMapping("/verify/{userId}")
+    public ResponseEntity<?> verifySession(@PathVariable String userId) {
+        try {
+            Optional<User> user = userRepository.findById(userId);
+            Map<String, Boolean> response = new HashMap<>();
+            response.put("valid", user.isPresent());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Boolean> response = new HashMap<>();
+            response.put("valid", false);
+            return ResponseEntity.ok(response);
+        }
     }
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { deleteComment } from '../services/api';
 import { parseMentions } from '../utils/mentionParser';
+import { formatDate } from '../utils/dateUtils';
 import CommentForm from './CommentForm';
 
 const CommentItem = ({ comment, userId, postOwnerId, onDelete, onUpdate, isNew }) => {
@@ -13,7 +14,17 @@ const CommentItem = ({ comment, userId, postOwnerId, onDelete, onUpdate, isNew }
   const canDelete = isCommentOwner || isPostOwner;
   const canEdit = isCommentOwner; // Only comment owner can edit
   
-  const formattedDate = new Date(comment.createdAt).toLocaleString();
+  // Fix the date formatting with better error handling
+  const getFormattedDate = () => {
+    if (!comment || !comment.createdAt) return 'Just now';
+    
+    try {
+      return formatDate(comment.createdAt) || 'Just now';
+    } catch (error) {
+      console.error('Error formatting comment date:', error);
+      return 'Just now';
+    }
+  };
   
   // Highlight effect for new comments
   useEffect(() => {
@@ -100,7 +111,9 @@ const CommentItem = ({ comment, userId, postOwnerId, onDelete, onUpdate, isNew }
                     </span>
                   )}
                   <p className="text-sm break-words leading-relaxed">{parseMentions(comment.text)}</p>
-                  <span className="text-xs text-gray-500 mt-1">{formattedDate}</span>
+                  <span className="text-xs text-gray-500 mt-1">
+                    {getFormattedDate()}
+                  </span>
                 </div>
                 
                 {(canDelete || canEdit) && (

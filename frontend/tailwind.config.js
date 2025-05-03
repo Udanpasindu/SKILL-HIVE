@@ -25,7 +25,8 @@ export default {
         'slide-in': 'slideIn 0.5s ease-out forwards',
         'slide-out': 'slideOut 0.5s ease-in forwards',
         'fade-in': 'fadeIn 0.5s ease-out forwards',
-        'fade-out': 'fadeOut 0.5s ease-in forwards'
+        'fade-out': 'fadeOut 0.5s ease-in forwards',
+        'rise': 'riseUp 0.2s ease-out forwards'
       },
       keyframes: {
         wiggle: {
@@ -47,6 +48,10 @@ export default {
         fadeOut: {
           '0%': { opacity: '1' },
           '100%': { opacity: '0' },
+        },
+        riseUp: {
+          '0%': { opacity: '0', transform: 'translateY(10px) scale(0.8)' },
+          '100%': { opacity: '1', transform: 'translateY(0) scale(1)' },
         }
       }
     } 

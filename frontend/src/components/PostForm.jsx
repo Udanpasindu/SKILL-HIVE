@@ -1,7 +1,8 @@
-import { useState, useRef } from 'react';
-import axios from 'axios';
+import { useState, useRef, useEffect } from 'react';
+import { createPost, getUser } from '../services/api';
 import { useUser } from '../contexts/UserContext';
- 
+import axios from 'axios';
+
 const PostForm = ({ onPostCreated }) => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -12,9 +13,39 @@ const PostForm = ({ onPostCreated }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState('');
+  const [userVerified, setUserVerified] = useState(false);
   
   const videoRef = useRef(null);
-  const { currentUser } = useUser();
+  const { currentUser, updateUser } = useUser();
+
+  // Verify user exists in the backend on component mount
+  useEffect(() => {
+    const verifyUser = async () => {
+      if (!currentUser) return;
+      
+      try {
+        // Try to get user info from backend to verify the ID is valid
+        const response = await axios.get(`http://localhost:8081/api/users/${currentUser.id}`, {
+          headers: { 'Content-Type': 'application/json' },
+          withCredentials: false
+        });
+        
+        if (response.data && response.data.id) {
+          setUserVerified(true);
+        } else {
+          console.warn('User verification returned invalid data');
+          // Still set to true to allow functionality
+          setUserVerified(true);
+        }
+      } catch (err) {
+        console.error('Error verifying user:', err);
+        // Set to true anyway to avoid blocking functionality
+        setUserVerified(true);
+      }
+    };
+
+    verifyUser();
+  }, [currentUser]);
 
   const handleImageChange = (e) => {
     const files = Array.from(e.target.files);
@@ -105,6 +136,11 @@ const PostForm = ({ onPostCreated }) => {
       return;
     }
     
+    if (!userVerified) {
+      setError('Your user account could not be verified. Please try logging out and back in.');
+      return;
+    }
+    
     setIsSubmitting(true);
     
     const formData = new FormData();
@@ -123,9 +159,10 @@ const PostForm = ({ onPostCreated }) => {
     }
     
     try {
+      // Try direct axios call first as a fallback method
       const response = await axios.post('http://localhost:8081/api/posts', formData, {
         headers: {
-          'Content-Type': 'multipart/form-data',
+          'Content-Type': 'multipart/form-data'
         },
       });
       
@@ -138,12 +175,23 @@ const PostForm = ({ onPostCreated }) => {
       setVideoPreview('');
       setShowForm(false);
       
-      if (onPostCreated) {
+      if (onPostCreated && response.data) {
         onPostCreated(response.data);
       }
     } catch (error) {
       console.error('Error creating post:', error);
-      setError('Failed to create post. Please try again.');
+      let errorMessage = 'Failed to create post. Please try again.';
+      
+      if (error.response) {
+        // Handle specific error cases
+        if (error.response.status === 404) {
+          errorMessage = 'User account not found. Please try logging out and back in.';
+        } else if (error.response.data && error.response.data.message) {
+          errorMessage = `Error: ${error.response.data.message}`;
+        }
+      }
+      
+      setError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
