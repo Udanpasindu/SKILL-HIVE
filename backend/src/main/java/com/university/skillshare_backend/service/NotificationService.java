@@ -88,6 +88,16 @@ public class NotificationService {
      * Delete a notification
      */
     public void deleteNotification(String notificationId) {
+        if (notificationId == null || notificationId.isEmpty()) {
+            throw new IllegalArgumentException("Notification ID cannot be null or empty");
+        }
+        
+        // Check if notification exists before deleting
+        boolean exists = notificationRepository.existsById(notificationId);
+        if (!exists) {
+            throw new RuntimeException("Notification with ID " + notificationId + " not found");
+        }
+        
         notificationRepository.deleteById(notificationId);
     }
     

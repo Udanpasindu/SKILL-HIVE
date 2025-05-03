@@ -1,15 +1,3 @@
-import { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import LikeButton from './LikeButton';
-import CommentList from './CommentList';
-import CommentForm from './CommentForm';
-import useWebSocket from '../hooks/useWebSocket';
-import { getUser, deletePost, editPost, getReactions } from '../services/api';
-import { formatDate } from '../utils/dateUtils';
-import ShareModal from './ShareModal';
-import ReactionButton from './ReactionButton';
-import ReactionDisplay from './ReactionDisplay';
-
 const PostCard = ({ post, userId, detailed = false, onDelete }) => {
   const [authorName, setAuthorName] = useState('');
   const [showComments, setShowComments] = useState(detailed);
@@ -24,25 +12,20 @@ const PostCard = ({ post, userId, detailed = false, onDelete }) => {
   const [showShareModal, setShowShareModal] = useState(false);
   const [reactionCounts, setReactionCounts] = useState({});
   const [totalReactions, setTotalReactions] = useState(0);
-  
-  // Use WebSocket for real-time updates
+
   const { likeCount: wsLikeCount, comments: wsComments, addLocalComment } = useWebSocket(post.id);
-  
-  // Local state for likes and comments
+
   const [localLikeCount, setLocalLikeCount] = useState(post.likeCount || 0);
-  
+
   const commentListRef = useRef();
-  
   const navigate = useNavigate();
-  
-  // Update like count from WebSocket
+
   useEffect(() => {
     if (wsLikeCount > 0) {
       setLocalLikeCount(wsLikeCount);
     }
   }, [wsLikeCount]);
-  
-  // Fetch author name
+
   useEffect(() => {
     const fetchAuthor = async () => {
       try {
@@ -52,13 +35,12 @@ const PostCard = ({ post, userId, detailed = false, onDelete }) => {
         console.error('Error fetching post author:', error);
       }
     };
-    
+
     if (post.userId) {
       fetchAuthor();
     }
   }, [post.userId]);
-  
-  // Fetch reactions
+
   useEffect(() => {
     const fetchReactions = async () => {
       try {
@@ -69,24 +51,20 @@ const PostCard = ({ post, userId, detailed = false, onDelete }) => {
         console.error('Error fetching reactions:', error);
       }
     };
-    
+
     fetchReactions();
   }, [post.id]);
 
-  // Handle new comment added
   const handleCommentAdded = (newComment) => {
-    console.log('Comment added:', newComment);
-    // Register this comment as locally added to prevent duplication from WebSocket
     if (newComment && newComment.id) {
       addLocalComment(newComment.id);
     }
-    
+
     if (commentListRef && commentListRef.current) {
       commentListRef.current.addComment(newComment);
     }
   };
-  
-  // Toggle comments section
+
   const toggleComments = () => {
     if (!detailed) {
       setShowComments(prev => !prev);
@@ -106,30 +84,26 @@ const PostCard = ({ post, userId, detailed = false, onDelete }) => {
       formData.append('userId', post.userId);
       formData.append('title', post.title);
       formData.append('content', editedContent);
-      
-      // Handle images
+
       if (newImages && newImages.length > 0) {
         newImages.forEach(image => {
           formData.append('images', image);
         });
       }
-      
-      // Handle video
+
       if (newVideo) {
         formData.append('video', newVideo);
       }
 
       const updatedPost = await editPost(post.id, formData);
-      
+
       if (updatedPost) {
-        // Update local post state
         Object.assign(post, {
           content: editedContent,
           imageUrls: updatedPost.imageUrls || post.imageUrls,
           videoUrl: updatedPost.videoUrl || post.videoUrl
         });
-        
-        // Reset form state
+
         setIsEditing(false);
         setNewImages([]);
         setNewVideo(null);
@@ -154,13 +128,11 @@ const PostCard = ({ post, userId, detailed = false, onDelete }) => {
         await deletePost(post.id, userId);
         setDeleteSuccess(true);
         setShowDropdown(false);
-        
-        // Notify parent component about deletion
+
         if (onDelete) {
           onDelete(post.id);
         }
-        
-        // Show success message for 2 seconds before removing the post
+
         setTimeout(() => {
           setDeleteSuccess(false);
         }, 2000);
@@ -178,21 +150,19 @@ const PostCard = ({ post, userId, detailed = false, onDelete }) => {
     setTotalReactions(reactionData.total || 0);
   };
 
-  // Navigate to post detail page
   const handlePostClick = (e) => {
-    // Don't navigate if clicking on buttons or interactive elements
     if (
-      e.target.closest('button') || 
-      e.target.closest('a') || 
+      e.target.closest('button') ||
+      e.target.closest('a') ||
       e.target.closest('.dropdown-menu') ||
-      e.target.closest('.share-modal') ||  // Add this to prevent navigation when clicking inside share modal
-      showShareModal ||  // Don't navigate if share modal is open
+      e.target.closest('.share-modal') ||
+      showShareModal ||
       isEditing ||
-      detailed // Don't navigate if already on detail page
+      detailed
     ) {
       return;
     }
-    
+
     navigate(`/post/${post.id}`);
   };
 
@@ -204,21 +174,18 @@ const PostCard = ({ post, userId, detailed = false, onDelete }) => {
     );
   }
 
-  // Helper function to check if post has media
   const hasMedia = () => {
     return (post.imageUrls && post.imageUrls.length > 0) || post.videoUrl;
   };
-  
-  // Navigate to next image
+
   const nextImage = () => {
-    setCurrentImageIndex((prev) => 
+    setCurrentImageIndex((prev) =>
       prev === post.imageUrls.length - 1 ? 0 : prev + 1
     );
   };
-  
-  // Navigate to previous image
+
   const prevImage = () => {
-    setCurrentImageIndex((prev) => 
+    setCurrentImageIndex((prev) =>
       prev === 0 ? post.imageUrls.length - 1 : prev - 1
     );
   };
@@ -239,16 +206,15 @@ const PostCard = ({ post, userId, detailed = false, onDelete }) => {
   };
 
   return (
-    <div 
+    <div
       className={`bg-white rounded-lg shadow-md p-4 mb-4 ${!detailed ? 'cursor-pointer hover:shadow-lg transition-shadow duration-200' : ''}`}
       onClick={handlePostClick}
     >
-      {/* Post header */}
       <div className="flex justify-between mb-3">
         <div>
           <h3 className="font-medium">{post.title}</h3>
           <p className="text-sm text-gray-500">
-            Posted by {authorName || 'Anonymous'} • 
+            Posted by {authorName || 'Anonymous'} •
             {post.createdAt ? (
               <span className="date-display">{formatDate(post.createdAt) || 'Recent post'}</span>
             ) : (
@@ -256,28 +222,30 @@ const PostCard = ({ post, userId, detailed = false, onDelete }) => {
             )}
           </p>
         </div>
+        {post.userId && post.userId !== userId && (
+          <FollowButton userId={post.userId} />
+        )}
         <div className="relative">
-          <button 
+          <button
             onClick={() => setShowDropdown(!showDropdown)}
             className="flex items-center justify-center w-8 h-8 text-gray-600 hover:text-gray-800"
           >
             <svg width="16" height="4" viewBox="0 0 16 4" fill="currentColor">
-              <circle cx="2" cy="2" r="2"/>
-              <circle cx="8" cy="2" r="2"/>
-              <circle cx="14" cy="2" r="2"/>
+              <circle cx="2" cy="2" r="2" />
+              <circle cx="8" cy="2" r="2" />
+              <circle cx="14" cy="2" r="2" />
             </svg>
           </button>
-          
           {showDropdown && (
             <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10 border">
-              <button 
+              <button
                 onClick={handleEdit}
                 className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
               >
                 <span className="material-icons text-base">edit</span>
                 Edit Post
               </button>
-              <button 
+              <button
                 onClick={handleDelete}
                 disabled={isDeleting}
                 className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 flex items-center gap-2"
@@ -291,8 +259,7 @@ const PostCard = ({ post, userId, detailed = false, onDelete }) => {
           )}
         </div>
       </div>
-      
-      {/* Post content */}
+
       <div className="mb-4">
         {isEditing ? (
           <div className="space-y-2">
@@ -336,180 +303,77 @@ const PostCard = ({ post, userId, detailed = false, onDelete }) => {
               </button>
               <button
                 onClick={handleCancelEdit}
-                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
+                className="px-4 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400"
               >
                 Cancel
               </button>
             </div>
           </div>
         ) : (
-          <>
-            <h3 className={`font-medium text-xl mb-2 ${!detailed ? 'text-indigo-600' : ''}`}>
-              {post.title}
-            </h3>
-            <p className="text-gray-800">{post.content}</p>
-          </>
+          <p>{post.content}</p>
         )}
       </div>
-      
-      {/* Media section */}
+
       {hasMedia() && (
-        <div className="mb-4">
-          {/* Video */}
-          {post.videoUrl && (
-            <div className="mb-3">
-              <video 
-                controls 
-                className="w-full h-auto rounded-lg"
-                src={`http://localhost:8081${post.videoUrl}`}
+        <div className="relative">
+          {post.imageUrls && post.imageUrls.length > 0 && (
+            <div className="mb-4">
+              <button
+                onClick={prevImage}
+                className="absolute top-1/2 left-0 transform -translate-y-1/2 text-white bg-black bg-opacity-50 p-2 rounded-full"
               >
+                &#8249;
+              </button>
+              <img
+                src={post.imageUrls[currentImageIndex]}
+                alt={`Post Image ${currentImageIndex + 1}`}
+                className="w-full h-60 object-cover rounded-lg"
+              />
+              <button
+                onClick={nextImage}
+                className="absolute top-1/2 right-0 transform -translate-y-1/2 text-white bg-black bg-opacity-50 p-2 rounded-full"
+              >
+                &#8250;
+              </button>
+            </div>
+          )}
+          {post.videoUrl && (
+            <div className="mb-4">
+              <video className="w-full h-60 object-cover rounded-lg" controls>
+                <source src={post.videoUrl} type="video/mp4" />
                 Your browser does not support the video tag.
               </video>
             </div>
           )}
-          
-          {/* Images */}
-          {post.imageUrls && post.imageUrls.length > 0 && (
-            <div className="relative">
-              <img
-                src={`http://localhost:8081${post.imageUrls[currentImageIndex]}`}
-                alt={`Post image ${currentImageIndex + 1}`}
-                className="w-full h-auto rounded-lg"
-              />
-              
-              {/* Image navigation */}
-              {post.imageUrls.length > 1 && (
-                <>
-                  <button 
-                    onClick={prevImage} 
-                    className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white rounded-full w-8 h-8 flex items-center justify-center"
-                  >
-                    &lt;
-                  </button>
-                  <button 
-                    onClick={nextImage} 
-                    className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white rounded-full w-8 h-8 flex items-center justify-center"
-                  >
-                    &gt;
-                  </button>
-                  
-                  {/* Image indicators */}
-                  <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-1">
-                    {post.imageUrls.map((_, index) => (
-                      <button 
-                        key={index}
-                        onClick={() => setCurrentImageIndex(index)}
-                        className={`w-2 h-2 rounded-full ${index === currentImageIndex ? 'bg-white' : 'bg-gray-400'}`}
-                      />
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          )}
         </div>
       )}
-      
-      {/* Post actions */}
-      <div className="flex justify-between items-center border-t border-b py-2 my-2">
-        <div className="flex items-center gap-2">
-          {userId ? (
-            <ReactionButton 
-              postId={post.id}
-              userId={userId}
-              onReactionsUpdate={handleReactionsUpdate}
-            />
-          ) : (
-            <div className="text-gray-600 text-sm px-3 py-1 flex items-center gap-1">
-              <span className="material-icons text-base">thumb_up</span>
-              <span>Like</span>
-            </div>
-          )}
-          
-          {/* Show reaction counts to everyone */}
-          {totalReactions > 0 && (
-            <ReactionDisplay reactionCounts={reactionCounts} />
-          )}
-        </div>
-        
-        <div className="flex gap-2">
-          {/* Show comment count to everyone */}
-          <button
-            onClick={userId ? toggleComments : () => {}}
-            className={`inline-flex items-center gap-2 px-3 py-1 text-sm font-medium
-              ${userId ? 'text-gray-600 hover:text-blue-600 cursor-pointer' : 'text-gray-500 cursor-default'}
-            `}
-          >
-            <span className="material-icons text-base">comment</span>
-            <span>
-              {wsComments?.length || 0} {(wsComments?.length || 0) === 1 ? 'Comment' : 'Comments'}
-            </span>
-          </button>
-          
-          {/* Share button - only for authenticated users */}
-          {userId && (
-            <button
-              onClick={() => setShowShareModal(true)}
-              className="inline-flex items-center gap-2 px-3 py-1 text-gray-600 hover:text-green-600 text-sm font-medium"
-            >
-              <span className="material-icons text-base">share</span>
-              Share to Group
-            </button>
-          )}
-        </div>
+
+      <div className="mb-4">
+        <Reactions
+          reactionCounts={reactionCounts}
+          totalReactions={totalReactions}
+          postId={post.id}
+          onReactionsUpdate={handleReactionsUpdate}
+        />
       </div>
 
-      {/* Comments section - only show toggle for authenticated users */}
-      {userId && (showComments || detailed) && (
-        <div className="mt-3 border-t pt-3">
-          {/* Comment form */}
-          <CommentForm 
-            postId={post.id} 
-            userId={userId} 
-            onCommentAdded={handleCommentAdded}
-          />
-          
-          {/* Comment list */}
-          <CommentList 
-            ref={commentListRef}
-            postId={post.id} 
-            userId={userId}
-            postOwnerId={post.userId}
-            initialComments={wsComments}
-          />
-        </div>
-      )}
+      <div className="flex gap-3 items-center">
+        <button
+          className="text-sm text-gray-500 hover:text-gray-700"
+          onClick={toggleComments}
+        >
+          {showComments ? 'Hide Comments' : 'Show Comments'}
+        </button>
+        <button
+          className="text-sm text-gray-500 hover:text-gray-700"
+          onClick={() => setShowShareModal(true)}
+        >
+          Share Post
+        </button>
+      </div>
 
-      {/* Read-only comments section for unauthenticated users */}
-      {!userId && wsComments && wsComments.length > 0 && (
-        <div className="mt-3 border-t pt-3">
-          <div className="bg-gray-50 rounded-md p-3">
-            <div className="text-sm text-gray-600 mb-2">
-              <span className="material-icons text-xs align-middle mr-1">lock</span>
-              Sign in to view and post comments
-            </div>
-            <div className="text-gray-500 text-xs">
-              This post has {wsComments.length} comment{wsComments.length !== 1 ? 's' : ''}
-            </div>
-          </div>
-        </div>
-      )}
-      
-      {/* Share Modal */}
-      {showShareModal && (
-        <ShareModal
-          postId={post.id}
-          userId={userId}
-          onClose={() => setShowShareModal(false)}
-          onSuccess={() => {
-            setShowShareModal(false);
-            // Optionally show a success notification
-          }}
-          className="share-modal" // Add this class for targeting in the click handler
-        />
-      )}
+      {showComments && <CommentList comments={wsComments} postId={post.id} ref={commentListRef} />}
+      {showShareModal && <ShareModal post={post} onClose={() => setShowShareModal(false)} />}
     </div>
   );
 };
-
-export default PostCard;

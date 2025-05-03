@@ -7,6 +7,8 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ProfilePage from './pages/ProfilePage';
 import NotificationsPage from './pages/NotificationsPage';
+import AchievementsPage from './pages/AchievementsPage';
+import AchievementForm from './pages/AchievementForm';
 import GroupsPage from './pages/GroupsPage';
 import GroupPage from './pages/GroupPage';
 import { useUser } from './contexts/UserContext';
@@ -47,6 +49,21 @@ function AppRoutes() {
       <Route path="/notifications" element={
         <ProtectedRoute>
           <NotificationsPage />
+        </ProtectedRoute>
+      } />
+      <Route path="/achievements" element={
+        <ProtectedRoute>
+          <AchievementsPage />
+        </ProtectedRoute>
+      } />
+      <Route path="/achievements/create" element={
+        <ProtectedRoute>
+          <AchievementForm />
+        </ProtectedRoute>
+      } />
+      <Route path="/achievements/edit/:achievementId" element={
+        <ProtectedRoute>
+          <AchievementForm />
         </ProtectedRoute>
       } />
       <Route path="/groups" element={
