@@ -1,10 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import LikeButton from './LikeButton';
 import CommentList from './CommentList';
 import CommentForm from './CommentForm';
 import useWebSocket from '../hooks/useWebSocket';
-import { getUser, deletePost, editPost } from '../services/api';
+import { getUser, deletePost, editPost, getReactions } from '../services/api';
+import { formatDate } from '../utils/dateUtils';
+import ShareModal from './ShareModal';
+import ReactionButton from './ReactionButton';
+import ReactionDisplay from './ReactionDisplay';
 
 const PostCard = ({ post, userId, detailed = false, onDelete }) => {
   const [authorName, setAuthorName] = useState('');
@@ -17,6 +21,9 @@ const PostCard = ({ post, userId, detailed = false, onDelete }) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteSuccess, setDeleteSuccess] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [reactionCounts, setReactionCounts] = useState({});
+  const [totalReactions, setTotalReactions] = useState(0);
   
   // Use WebSocket for real-time updates
   const { likeCount: wsLikeCount, comments: wsComments, addLocalComment } = useWebSocket(post.id);
@@ -25,6 +32,8 @@ const PostCard = ({ post, userId, detailed = false, onDelete }) => {
   const [localLikeCount, setLocalLikeCount] = useState(post.likeCount || 0);
   
   const commentListRef = useRef();
+  
+  const navigate = useNavigate();
   
   // Update like count from WebSocket
   useEffect(() => {
@@ -49,6 +58,21 @@ const PostCard = ({ post, userId, detailed = false, onDelete }) => {
     }
   }, [post.userId]);
   
+  // Fetch reactions
+  useEffect(() => {
+    const fetchReactions = async () => {
+      try {
+        const data = await getReactions(post.id);
+        setReactionCounts(data.counts || {});
+        setTotalReactions(data.total || 0);
+      } catch (error) {
+        console.error('Error fetching reactions:', error);
+      }
+    };
+    
+    fetchReactions();
+  }, [post.id]);
+
   // Handle new comment added
   const handleCommentAdded = (newComment) => {
     console.log('Comment added:', newComment);
@@ -149,6 +173,29 @@ const PostCard = ({ post, userId, detailed = false, onDelete }) => {
     }
   };
 
+  const handleReactionsUpdate = (reactionData) => {
+    setReactionCounts(reactionData.counts || {});
+    setTotalReactions(reactionData.total || 0);
+  };
+
+  // Navigate to post detail page
+  const handlePostClick = (e) => {
+    // Don't navigate if clicking on buttons or interactive elements
+    if (
+      e.target.closest('button') || 
+      e.target.closest('a') || 
+      e.target.closest('.dropdown-menu') ||
+      e.target.closest('.share-modal') ||  // Add this to prevent navigation when clicking inside share modal
+      showShareModal ||  // Don't navigate if share modal is open
+      isEditing ||
+      detailed // Don't navigate if already on detail page
+    ) {
+      return;
+    }
+    
+    navigate(`/post/${post.id}`);
+  };
+
   if (deleteSuccess) {
     return (
       <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4">
@@ -192,14 +239,21 @@ const PostCard = ({ post, userId, detailed = false, onDelete }) => {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-4 mb-4">
+    <div 
+      className={`bg-white rounded-lg shadow-md p-4 mb-4 ${!detailed ? 'cursor-pointer hover:shadow-lg transition-shadow duration-200' : ''}`}
+      onClick={handlePostClick}
+    >
       {/* Post header */}
       <div className="flex justify-between mb-3">
         <div>
           <h3 className="font-medium">{post.title}</h3>
           <p className="text-sm text-gray-500">
             Posted by {authorName || 'Anonymous'} • 
-            {post.createdAt && new Date(post.createdAt).toLocaleDateString()}
+            {post.createdAt ? (
+              <span className="date-display">{formatDate(post.createdAt) || 'Recent post'}</span>
+            ) : (
+              'Recent post'
+            )}
           </p>
         </div>
         <div className="relative">
@@ -289,7 +343,12 @@ const PostCard = ({ post, userId, detailed = false, onDelete }) => {
             </div>
           </div>
         ) : (
-          <p className="text-gray-800">{post.content}</p>
+          <>
+            <h3 className={`font-medium text-xl mb-2 ${!detailed ? 'text-indigo-600' : ''}`}>
+              {post.title}
+            </h3>
+            <p className="text-gray-800">{post.content}</p>
+          </>
         )}
       </div>
       
@@ -353,28 +412,55 @@ const PostCard = ({ post, userId, detailed = false, onDelete }) => {
       
       {/* Post actions */}
       <div className="flex justify-between items-center border-t border-b py-2 my-2">
-        <LikeButton
-          postId={post.id}
-          initialLikeCount={localLikeCount}
-          userId={userId}
-          onLikeUpdate={setLocalLikeCount}
-        />
+        <div className="flex items-center gap-2">
+          {userId ? (
+            <ReactionButton 
+              postId={post.id}
+              userId={userId}
+              onReactionsUpdate={handleReactionsUpdate}
+            />
+          ) : (
+            <div className="text-gray-600 text-sm px-3 py-1 flex items-center gap-1">
+              <span className="material-icons text-base">thumb_up</span>
+              <span>Like</span>
+            </div>
+          )}
+          
+          {/* Show reaction counts to everyone */}
+          {totalReactions > 0 && (
+            <ReactionDisplay reactionCounts={reactionCounts} />
+          )}
+        </div>
         
         <div className="flex gap-2">
-          {!detailed && (
+          {/* Show comment count to everyone */}
+          <button
+            onClick={userId ? toggleComments : () => {}}
+            className={`inline-flex items-center gap-2 px-3 py-1 text-sm font-medium
+              ${userId ? 'text-gray-600 hover:text-blue-600 cursor-pointer' : 'text-gray-500 cursor-default'}
+            `}
+          >
+            <span className="material-icons text-base">comment</span>
+            <span>
+              {wsComments?.length || 0} {(wsComments?.length || 0) === 1 ? 'Comment' : 'Comments'}
+            </span>
+          </button>
+          
+          {/* Share button - only for authenticated users */}
+          {userId && (
             <button
-              onClick={toggleComments}
-              className="inline-flex items-center gap-2 px-3 py-1 text-gray-600 hover:text-blue-600 text-sm font-medium"
+              onClick={() => setShowShareModal(true)}
+              className="inline-flex items-center gap-2 px-3 py-1 text-gray-600 hover:text-green-600 text-sm font-medium"
             >
-              <span className="material-icons text-base">comment</span>
-              {showComments ? 'Hide Comments' : 'Show Comments'}
+              <span className="material-icons text-base">share</span>
+              Share to Group
             </button>
           )}
         </div>
       </div>
-      
-      {/* Comments section */}
-      {(showComments || detailed) && (
+
+      {/* Comments section - only show toggle for authenticated users */}
+      {userId && (showComments || detailed) && (
         <div className="mt-3 border-t pt-3">
           {/* Comment form */}
           <CommentForm 
@@ -392,6 +478,35 @@ const PostCard = ({ post, userId, detailed = false, onDelete }) => {
             initialComments={wsComments}
           />
         </div>
+      )}
+
+      {/* Read-only comments section for unauthenticated users */}
+      {!userId && wsComments && wsComments.length > 0 && (
+        <div className="mt-3 border-t pt-3">
+          <div className="bg-gray-50 rounded-md p-3">
+            <div className="text-sm text-gray-600 mb-2">
+              <span className="material-icons text-xs align-middle mr-1">lock</span>
+              Sign in to view and post comments
+            </div>
+            <div className="text-gray-500 text-xs">
+              This post has {wsComments.length} comment{wsComments.length !== 1 ? 's' : ''}
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Share Modal */}
+      {showShareModal && (
+        <ShareModal
+          postId={post.id}
+          userId={userId}
+          onClose={() => setShowShareModal(false)}
+          onSuccess={() => {
+            setShowShareModal(false);
+            // Optionally show a success notification
+          }}
+          className="share-modal" // Add this class for targeting in the click handler
+        />
       )}
     </div>
   );

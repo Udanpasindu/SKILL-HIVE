@@ -183,18 +183,21 @@ public class GroupController {
             User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
             
-            if (group.hasMember(user)) {
+            if (group.getMembers().contains(userId)) {
                 return ResponseEntity.badRequest().body("User is already a member of this group");
             }
             
-            group.addMember(user);
+            List<String> members = group.getMembers();
+            members.add(userId);
+            group.setMembers(members);
+            
             Group updatedGroup = groupRepository.save(group);
             return ResponseEntity.ok(updatedGroup);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
-    
+
     @PostMapping("/{groupId}/leave")
     public ResponseEntity<?> leaveGroup(@PathVariable String groupId, @RequestParam String userId) {
         try {
@@ -203,11 +206,14 @@ public class GroupController {
             User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
             
-            if (!group.hasMember(user)) {
+            if (!group.getMembers().contains(userId)) {
                 return ResponseEntity.badRequest().body("User is not a member of this group");
             }
             
-            group.removeMember(user);
+            List<String> members = group.getMembers();
+            members.remove(userId);
+            group.setMembers(members);
+            
             Group updatedGroup = groupRepository.save(group);
             return ResponseEntity.ok(updatedGroup);
         } catch (Exception e) {
@@ -232,7 +238,10 @@ public class GroupController {
             User member = userRepository.findById(memberId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", memberId));
             
-            group.removeMember(member);
+            List<String> members = group.getMembers();
+            members.remove(memberId);
+            group.setMembers(members);
+            
             Group updatedGroup = groupRepository.save(group);
             return ResponseEntity.ok(updatedGroup);
         } catch (Exception e) {

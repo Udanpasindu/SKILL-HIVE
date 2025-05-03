@@ -1,13 +1,35 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
 
 const GroupCard = ({ group, onDelete, isOwner, onMembershipChange }) => {
   const [loading, setLoading] = useState(false);
+  const [ownerDetails, setOwnerDetails] = useState(null);
+  const [ownerLoading, setOwnerLoading] = useState(false);
   const navigate = useNavigate();
   const { currentUser } = useUser();
-  const [isMember, setIsMember] = useState(group.members?.some(member => member.id === currentUser?.id));
+  // Fix: Check if the user's ID is in the members array directly
+  const [isMember, setIsMember] = useState(group.members?.includes(currentUser?.id));
+
+  useEffect(() => {
+    fetchOwnerDetails();
+  }, [group.ownerId]);
+
+  const fetchOwnerDetails = async () => {
+    if (!group.ownerId) return;
+    
+    try {
+      setOwnerLoading(true);
+      const response = await axios.get(`http://localhost:8081/api/users/${group.ownerId}`);
+      setOwnerDetails(response.data);
+    } catch (error) {
+      console.error('Error fetching owner details:', error);
+      setOwnerDetails({ username: "Unknown" });
+    } finally {
+      setOwnerLoading(false);
+    }
+  };
 
   const handleDelete = async () => {
     if (!window.confirm('Are you sure you want to delete this group?')) return;
@@ -69,6 +91,12 @@ const GroupCard = ({ group, onDelete, isOwner, onMembershipChange }) => {
           {group.name}
         </h3>
         <p className="text-gray-600 mt-2">{group.description}</p>
+        
+        {/* Display group owner info */}
+        <p className="text-sm text-gray-500 mt-1">
+          Created by: {ownerLoading ? 'Loading...' : (ownerDetails?.username || 'Unknown')}
+        </p>
+        
         <div className="mt-4 flex justify-between items-center">
           <span className="text-sm text-gray-500">
             {(group.members || []).length} members

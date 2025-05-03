@@ -10,7 +10,6 @@ import NotificationsPage from './pages/NotificationsPage';
 import GroupsPage from './pages/GroupsPage';
 import GroupPage from './pages/GroupPage';
 import { useUser } from './contexts/UserContext';
-import './App.css';
 
 // Protected route component
 const ProtectedRoute = ({ children }) => {

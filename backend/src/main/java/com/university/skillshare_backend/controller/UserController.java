@@ -7,7 +7,9 @@ import org.springframework.web.bind.annotation.*;
 
 import com.university.skillshare_backend.dto.UserUpdateRequest;
 import com.university.skillshare_backend.exception.ResourceNotFoundException;
+import com.university.skillshare_backend.model.Group;
 import com.university.skillshare_backend.model.User;
+import com.university.skillshare_backend.repository.GroupRepository;
 import com.university.skillshare_backend.repository.UserRepository;
 
 import java.util.HashMap;
@@ -16,14 +18,15 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
-@CrossOrigin(origins = "*") // Consider restricting this in production
 public class UserController {
 
     private final UserRepository userRepository;
+    private final GroupRepository groupRepository;
     
     @Autowired
-    public UserController(UserRepository userRepository) {
+    public UserController(UserRepository userRepository, GroupRepository groupRepository) {
         this.userRepository = userRepository;
+        this.groupRepository = groupRepository;
     }
     
     /**
@@ -130,5 +133,20 @@ public class UserController {
         updatedUser.setPassword(null); // Don't return password
         
         return ResponseEntity.ok(updatedUser);
+    }
+
+    /**
+     * Get all groups for a user
+     * 
+     * @param userId User ID
+     * @return List of groups the user is a member of
+     */
+    @GetMapping("/users/{userId}/groups")
+    public ResponseEntity<List<Group>> getUserGroups(@PathVariable String userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+        
+        List<Group> groups = groupRepository.findByMembersContains(userId);
+        return ResponseEntity.ok(groups);
     }
 }
