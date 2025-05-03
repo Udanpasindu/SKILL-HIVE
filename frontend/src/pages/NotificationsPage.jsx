@@ -99,11 +99,18 @@ const NotificationsPage = () => {
   const handleDelete = async (notificationId, e) => {
     if (e) e.stopPropagation();
     try {
-      await axios.delete(`http://localhost:8081/api/notifications/${notificationId}`);
-      setNotifications(notifications.filter(n => n.id !== notificationId));
+      console.log(`Deleting notification with ID: ${notificationId}`);
+      const response = await axios.delete(`http://localhost:8081/api/notifications/${notificationId}`);
+      console.log('Delete response:', response.data);
+      
+      // Update the local state to remove the deleted notification
+      setNotifications(prevNotifications => 
+        prevNotifications.filter(n => n.id !== notificationId)
+      );
+      
     } catch (error) {
       console.error('Error deleting notification:', error);
-      alert('Failed to delete notification.');
+      alert('Failed to delete notification. Please try again.');
     }
   };
 
