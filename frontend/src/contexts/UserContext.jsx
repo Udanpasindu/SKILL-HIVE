@@ -1,99 +1,125 @@
-import { createContext, useState, useContext, useEffect } from 'react';
-import axios from 'axios';
+import { createContext, useContext, useState, useEffect } from 'react';
+import { login as apiLogin, verifySession, register as apiRegister } from '../services/api';
 
-// Create context
-const UserContext = createContext();
+const UserContext = createContext(null);
 
-// Create provider component
 export const UserProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Load user from localStorage on initial render
   useEffect(() => {
-    const loadUser = async () => {
+    const validateSession = async () => {
       try {
-        // Try to get from localStorage
-        const savedUser = localStorage.getItem('skillshare_user');
-        
-        if (savedUser) {
-          setCurrentUser(JSON.parse(savedUser));
+        const isValid = await verifySession();
+        if (!isValid) {
+          localStorage.removeItem('currentUser');
+          setCurrentUser(null);
         }
       } catch (error) {
-        console.error('Error loading user:', error);
+        console.error('Session validation failed:', error);
+        localStorage.removeItem('currentUser');
+        setCurrentUser(null);
       } finally {
         setLoading(false);
       }
     };
-    
-    loadUser();
+
+    const savedUser = localStorage.getItem('currentUser');
+    if (savedUser) {
+      try {
+        const user = JSON.parse(savedUser);
+        setCurrentUser(user);
+        validateSession();
+      } catch (error) {
+        console.error('Error parsing saved user:', error);
+        localStorage.removeItem('currentUser');
+        setLoading(false);
+      }
+    } else {
+      setLoading(false);
+    }
   }, []);
-  
-  // Function to register user
+
+  const login = async (username, password) => {
+    try {
+      const response = await apiLogin({ username, password });
+      
+      if (!response || !response.id) {
+        throw new Error('Invalid response from server');
+      }
+      
+      // Properly store user data
+      const userData = {
+        id: response.id,
+        username: response.username,
+        email: response.email,
+        fullName: response.fullName,
+      };
+      
+      localStorage.setItem('currentUser', JSON.stringify(userData));
+      setCurrentUser(userData);
+      return userData;
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
+    }
+  };
+
   const register = async (userData) => {
     try {
-      const response = await axios.post('http://localhost:8081/api/auth/register', userData);
-      const user = response.data;
-      setCurrentUser(user);
-      localStorage.setItem('skillshare_user', JSON.stringify(user));
-      return { success: true, user };
+      const response = await apiRegister(userData);
+      
+      if (!response || !response.id) {
+        return { success: false, error: 'Invalid response from server' };
+      }
+      
+      // Store user data
+      const newUser = {
+        id: response.id,
+        username: response.username,
+        email: response.email,
+        fullName: response.fullName,
+      };
+      
+      localStorage.setItem('currentUser', JSON.stringify(newUser));
+      setCurrentUser(newUser);
+      return { success: true, user: newUser };
     } catch (error) {
       console.error('Registration error:', error);
       return { 
         success: false, 
-        error: error.response?.data?.error || 'Registration failed'
-      };
-    }
-  };
-  
-  // Function to login user
-  const login = async (credentials) => {
-    try {
-      const response = await axios.post('http://localhost:8081/api/auth/login', credentials);
-      const user = response.data;
-      setCurrentUser(user);
-      localStorage.setItem('skillshare_user', JSON.stringify(user));
-      return { success: true, user };
-    } catch (error) {
-      console.error('Login error:', error);
-      return { 
-        success: false, 
-        error: error.response?.data?.error || 'Invalid credentials'
+        error: error.message || 'Registration failed. Please try again.' 
       };
     }
   };
 
-  // Function to update user
-  const updateUser = (userData) => {
-    setCurrentUser(userData);
-    localStorage.setItem('skillshare_user', JSON.stringify(userData));
-  };
-  
-  // Function to logout
   const logout = () => {
+    localStorage.removeItem('currentUser');
     setCurrentUser(null);
-    localStorage.removeItem('skillshare_user');
   };
+
+  const updateUser = (userData) => {
+    const updatedUser = { ...currentUser, ...userData };
+    localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+    setCurrentUser(updatedUser);
+  };
+
+  // Show loading state while checking for saved user
+  if (loading) {
+    return <div>Loading...</div>;
+  }
 
   return (
-    <UserContext.Provider value={{ 
-      currentUser, 
-      loading, 
-      register,
-      login,
-      updateUser, 
-      logout 
-    }}>
+    <UserContext.Provider value={{ currentUser, login, logout, updateUser, register }}>
       {children}
     </UserContext.Provider>
   );
 };
 
-// Create custom hook for using user context
 export const useUser = () => {
   const context = useContext(UserContext);
   if (!context) {
-    throw new Error("useUser must be used within a UserProvider");
+    throw new Error('useUser must be used within a UserProvider');
   }
   return context;
 };

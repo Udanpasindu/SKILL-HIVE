@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useUser } from '../contexts/UserContext';
 import FollowButton from '../components/FollowButton';
 import axios from 'axios';
+import UserPosts from '../components/UserPosts';
 
 const ProfilePage = () => {
   const { currentUser, updateUser } = useUser();
@@ -269,121 +270,73 @@ const ProfilePage = () => {
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-indigo-500 border-t-transparent"></div>
               <p className="mt-2 text-gray-600">Loading posts...</p>
             </div>
-          ) : userPosts.length > 0 ? (
-            <div className="space-y-6">
-              {userPosts.map((post) => (
-                <div key={post.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-2">{post.title}</h3>
-                  <p className="text-gray-600">{post.content.substring(0, 150)}...</p>
-                  <div className="mt-4 flex justify-end">
-                    <a href={`/post/${post.id}`} className="text-indigo-600 hover:text-indigo-800 font-medium">
-                      View Full Post
-                    </a>
-                  </div>
-                </div>
-              ))}
-            </div>
+          ) : userPosts.length === 0 ? (
+            <p className="text-center text-gray-600">No posts available.</p>
           ) : (
-            <div className="text-center py-8 text-gray-500">
-              <p>You haven't created any posts yet.</p>
-              <a
-                href="/"
-                className="inline-block mt-4 px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition duration-300"
-              >
-                Create Your First Post
-              </a>
-            </div>
+            <UserPosts posts={userPosts} />
           )}
         </div>
       </div>
 
-      {/* Followers Modal */}
+      {/* Modal for Followers */}
       {showFollowersModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden">
-            <div className="flex justify-between items-center border-b p-4">
-              <h3 className="text-xl font-semibold">Followers</h3>
+        <div className="fixed inset-0 bg-gray-800 bg-opacity-50 z-50 flex justify-center items-center">
+          <div className="bg-white rounded-lg p-8">
+            <h2 className="text-xl font-bold mb-4">Followers</h2>
+            {loadingUsers ? (
+              <div className="text-center py-8">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-indigo-500 border-t-transparent"></div>
+              </div>
+            ) : followers.length === 0 ? (
+              <p>No followers yet.</p>
+            ) : (
+              <ul>
+                {followers.map((follower) => (
+                  <li key={follower.id} className="py-2">
+                    {follower.fullName}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="mt-4 text-right">
               <button
+                className="px-4 py-2 bg-gray-500 text-white rounded"
                 onClick={() => setShowFollowersModal(false)}
-                className="text-gray-500 hover:text-gray-700"
               >
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                Close
               </button>
-            </div>
-
-            <div className="p-4 max-h-96 overflow-y-auto">
-              {loadingUsers ? (
-                <div className="flex justify-center items-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-indigo-500 border-t-transparent"></div>
-                </div>
-              ) : followers.length === 0 ? (
-                <p className="text-center text-gray-500 py-8">No followers yet</p>
-              ) : (
-                <ul className="divide-y divide-gray-200">
-                  {followers.map((user) => (
-                    <li key={user.id} className="py-4 flex items-center justify-between">
-                      <div className="flex items-center">
-                        <div className="bg-indigo-100 text-indigo-700 rounded-full h-10 w-10 flex items-center justify-center font-semibold">
-                          {user.username.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="ml-3">
-                          <p className="font-medium text-gray-900">{user.fullName || user.username}</p>
-                          <p className="text-sm text-gray-500">@{user.username}</p>
-                        </div>
-                      </div>
-                      {currentUser.id !== user.id && <FollowButton userId={user.id} />}
-                    </li>
-                  ))}
-                </ul>
-              )}
             </div>
           </div>
         </div>
       )}
 
-      {/* Following Modal */}
+      {/* Modal for Following */}
       {showFollowingModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md overflow-hidden">
-            <div className="flex justify-between items-center border-b p-4">
-              <h3 className="text-xl font-semibold">Following</h3>
+        <div className="fixed inset-0 bg-gray-800 bg-opacity-50 z-50 flex justify-center items-center">
+          <div className="bg-white rounded-lg p-8">
+            <h2 className="text-xl font-bold mb-4">Following</h2>
+            {loadingUsers ? (
+              <div className="text-center py-8">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-indigo-500 border-t-transparent"></div>
+              </div>
+            ) : following.length === 0 ? (
+              <p>You're not following anyone yet.</p>
+            ) : (
+              <ul>
+                {following.map((followee) => (
+                  <li key={followee.id} className="py-2">
+                    {followee.fullName}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="mt-4 text-right">
               <button
+                className="px-4 py-2 bg-gray-500 text-white rounded"
                 onClick={() => setShowFollowingModal(false)}
-                className="text-gray-500 hover:text-gray-700"
               >
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                Close
               </button>
-            </div>
-
-            <div className="p-4 max-h-96 overflow-y-auto">
-              {loadingUsers ? (
-                <div className="flex justify-center items-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-indigo-500 border-t-transparent"></div>
-                </div>
-              ) : following.length === 0 ? (
-                <p className="text-center text-gray-500 py-8">Not following anyone yet</p>
-              ) : (
-                <ul className="divide-y divide-gray-200">
-                  {following.map((user) => (
-                    <li key={user.id} className="py-4 flex items-center justify-between">
-                      <div className="flex items-center">
-                        <div className="bg-indigo-100 text-indigo-700 rounded-full h-10 w-10 flex items-center justify-center font-semibold">
-                          {user.username.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="ml-3">
-                          <p className="font-medium text-gray-900">{user.fullName || user.username}</p>
-                          <p className="text-sm text-gray-500">@{user.username}</p>
-                        </div>
-                      </div>
-                      {currentUser.id !== user.id && <FollowButton userId={user.id} initialFollowStatus={true} />}
-                    </li>
-                  ))}
-                </ul>
-              )}
             </div>
           </div>
         </div>

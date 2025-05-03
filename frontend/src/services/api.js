@@ -1,11 +1,68 @@
 import axios from 'axios';
 
-// Create axios instance with base URL
+// Create axios instance with base URL and proper CORS configuration
 const api = axios.create({
-  baseURL: 'http://localhost:8081/api', // Using port 8081 as specified in your backend
+  baseURL: 'http://localhost:8081/api',
+  withCredentials: false, // Set to false to match backend configuration
+  headers: {
+    'Content-Type': 'application/json'
+  }
 });
 
-// Like a post
+// Add auth token header if available
+api.interceptors.request.use(config => {
+  const user = localStorage.getItem('currentUser');
+  if (user) {
+    try {
+      const { id } = JSON.parse(user);
+      config.headers['X-User-Id'] = id;
+    } catch (error) {
+      console.error('Error parsing user data:', error);
+    }
+  }
+  return config;
+});
+
+// Add response interceptor to handle common errors
+api.interceptors.response.use(
+  response => response,
+  error => {
+    // Handle CORS errors specifically
+    if (error.message && error.message.includes('Network Error')) {
+      console.error('CORS or network error detected:', error);
+    }
+
+    // Handle authentication errors
+    if (error.response && error.response.status === 401) {
+      console.error('Authentication error. User needs to login again.');
+    }
+
+    return Promise.reject(error);
+  }
+);
+
+// Authentication functions
+export const login = async (credentials) => {
+  try {
+    const response = await axios.post('http://localhost:8081/api/auth/login', credentials);
+    return response.data;
+  } catch (error) {
+    console.error('Login error:', error);
+    throw error;
+  }
+};
+
+export const register = async (userData) => {
+  try {
+    const response = await axios.post('http://localhost:8081/api/auth/register', userData);
+    return response.data;
+  } catch (error) {
+    console.error('Registration error:', error);
+    throw error;
+  }
+};
+
+// Like/Unlike Post
 export const likePost = async (postId, userId) => {
   try {
     const response = await api.post(`/posts/${postId}/like?userId=${userId}`);
@@ -16,7 +73,6 @@ export const likePost = async (postId, userId) => {
   }
 };
 
-// Unlike a post
 export const unlikePost = async (postId, userId) => {
   try {
     const response = await api.delete(`/posts/${postId}/like?userId=${userId}`);
@@ -27,18 +83,7 @@ export const unlikePost = async (postId, userId) => {
   }
 };
 
-// Get like count for a post
-export const getLikeCount = async (postId, userId) => {
-  try {
-    const response = await api.get(`/posts/${postId}/likes${userId ? `?userId=${userId}` : ''}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error getting like count:', error);
-    throw error;
-  }
-};
-
-// Add a comment to a post
+// Commenting on a Post
 export const addComment = async (postId, userId, text) => {
   try {
     const response = await api.post(`/posts/${postId}/comments?userId=${userId}`, { text });
@@ -49,7 +94,6 @@ export const addComment = async (postId, userId, text) => {
   }
 };
 
-// Edit a comment
 export const editComment = async (commentId, userId, text) => {
   try {
     const response = await api.put(`/comments/${commentId}?userId=${userId}`, { text });
@@ -60,7 +104,6 @@ export const editComment = async (commentId, userId, text) => {
   }
 };
 
-// Delete a comment
 export const deleteComment = async (commentId, userId) => {
   try {
     const response = await api.delete(`/comments/${commentId}?userId=${userId}`);
@@ -71,51 +114,43 @@ export const deleteComment = async (commentId, userId) => {
   }
 };
 
-// Get all comments for a post
-export const getComments = async (postId) => {
+// Post CRUD operations
+export const createPost = async (formData) => {
   try {
-    const response = await api.get(`/posts/${postId}/comments`);
+    const response = await axios.post('http://localhost:8081/api/posts', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      withCredentials: false
+    });
     return response.data;
   } catch (error) {
-    console.error('Error getting comments:', error);
+    console.error('Error creating post:', error);
     throw error;
   }
 };
 
-// Get post details
-export const getPost = async (postId) => {
+export const editPost = async (postId, formData) => {
   try {
-    const response = await api.get(`/posts/${postId}`);
+    const response = await api.post(`/posts/${postId}/edit`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
     return response.data;
   } catch (error) {
-    console.error('Error getting post details:', error);
+    console.error('Error editing post:', error);
     throw error;
   }
 };
 
-// Get user details
-export const getUser = async (userId) => {
+export const deletePost = async (postId, userId) => {
   try {
-    const response = await api.get(`/users/${userId}`);
+    const response = await api.delete(`/posts/${postId}?userId=${userId}`);
     return response.data;
   } catch (error) {
-    console.error('Error getting user details:', error);
+    console.error('Error deleting post:', error);
     throw error;
   }
 };
 
-// Search users (for @mentions)
-export const searchUsers = async (query) => {
-  try {
-    const response = await api.get(`/users/search?query=${query}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error searching users:', error);
-    throw error;
-  }
-};
-
-// Follow user
+// Follow/Unfollow User
 export const followUser = async (followerId, userId) => {
   try {
     const response = await api.post(`/users/${followerId}/follow/${userId}`);
@@ -126,7 +161,6 @@ export const followUser = async (followerId, userId) => {
   }
 };
 
-// Unfollow user
 export const unfollowUser = async (followerId, userId) => {
   try {
     const response = await api.delete(`/users/${followerId}/unfollow/${userId}`);
@@ -137,7 +171,6 @@ export const unfollowUser = async (followerId, userId) => {
   }
 };
 
-// Check if user is following another user
 export const isFollowing = async (followerId, userId) => {
   try {
     const response = await api.get(`/users/${followerId}/following/${userId}`);
@@ -145,5 +178,64 @@ export const isFollowing = async (followerId, userId) => {
   } catch (error) {
     console.error('Error checking follow status:', error);
     return false;
+  }
+};
+
+// Get User Posts
+export const getUserPosts = async (userId) => {
+  try {
+    const response = await api.get(`/users/${userId}/posts`);
+    return response.data;
+  } catch (error) {
+    console.error('Error getting user posts:', error);
+    throw error;
+  }
+};
+
+// Get Post and Comments
+export const getPost = async (postId) => {
+  try {
+    const response = await api.get(`/posts/${postId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error getting post details:', error);
+    throw error;
+  }
+};
+
+export const getComments = async (postId) => {
+  try {
+    const response = await api.get(`/posts/${postId}/comments`);
+    return response.data;
+  } catch (error) {
+    console.error('Error getting comments:', error);
+    throw error;
+  }
+};
+
+// Verify Session
+export const verifySession = async () => {
+  try {
+    const user = localStorage.getItem('currentUser');
+    if (!user) return false;
+
+    const { id } = JSON.parse(user);
+    const response = await api.get(`/auth/verify/${id}`);
+    return response.data.valid;
+  } catch (error) {
+    console.error('Session verification failed:', error);
+    localStorage.removeItem('currentUser');
+    return false;
+  }
+};
+
+// Search Users
+export const searchUsers = async (query) => {
+  try {
+    const response = await api.get(`/users/search?query=${query}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error searching users:', error);
+    throw error;
   }
 };

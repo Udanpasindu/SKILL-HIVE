@@ -3,35 +3,35 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
 
 const LoginPage = () => {
-  const [formData, setFormData] = useState({
-    username: '',
-    password: '',
-  });
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useUser();
   const navigate = useNavigate();
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
+    if (name === 'username') {
+      setUsername(value);
+    } else if (name === 'password') {
+      setPassword(value);
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsLoading(true);
     setError('');
-
-    const result = await login(formData);
+    setIsLoading(true);
     
-    setIsLoading(false);
-    
-    if (result.success) {
+    try {
+      await login(username, password);
       navigate('/');
-    } else {
-      setError(result.error);
+    } catch (error) {
+      console.error('Login failed:', error);
+      setError(error.message || 'Login failed. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -56,7 +56,7 @@ const LoginPage = () => {
               id="username"
               name="username"
               type="text"
-              value={formData.username}
+              value={username}
               onChange={handleChange}
               required
               placeholder="Enter your username or email"
@@ -72,7 +72,7 @@ const LoginPage = () => {
               id="password"
               name="password"
               type="password"
-              value={formData.password}
+              value={password}
               onChange={handleChange}
               required
               placeholder="Enter your password"

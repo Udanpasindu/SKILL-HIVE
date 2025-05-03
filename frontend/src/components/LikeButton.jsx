@@ -7,7 +7,7 @@ const LikeButton = ({ postId, initialLikeCount = 0, userId, onLikeUpdate }) => {
   const [loading, setLoading] = useState(false);
 
   // Check if user has already liked the post
-  useEffect(() => {
+  useEffect(() => { 
     const checkLikeStatus = async () => {
       if (!userId || !postId) return;
 
