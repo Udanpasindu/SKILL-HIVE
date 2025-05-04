@@ -13,11 +13,14 @@ const Comments = ({ postId, userId, postOwnerId, initialComments = [] }) => {
 
   return (
     <div className="mt-4">
-      <CommentForm 
-        postId={postId} 
-        userId={userId} 
-        onCommentAdded={handleCommentAdded} 
-      />
+      {/* Only render CommentForm if user is logged in */}
+      {userId && (
+        <CommentForm 
+          postId={postId} 
+          userId={userId} 
+          onCommentAdded={handleCommentAdded} 
+        />
+      )}
       <CommentList 
         ref={commentListRef}
         postId={postId} 

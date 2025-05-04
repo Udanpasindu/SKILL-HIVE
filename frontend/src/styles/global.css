@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom reaction component styles */
+.reaction-button {
+  @apply rounded-full w-8 h-8 flex items-center justify-center cursor-pointer bg-transparent border-none transition-transform;
+}
+
+.reaction-button:hover {
+  @apply transform scale-125 bg-gray-100;
+}
+
+.reactions-bar {
+  @apply flex items-center gap-1.5 rounded-2xl transition-colors;
+  padding: 2px 8px;
+}
+
+.reactions-bar:hover {
+  @apply bg-gray-100;
+}
+
+/* Animation for reactions */
+@keyframes riseUp {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.8);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-rise {
+  animation: riseUp 0.2s ease-out forwards;
+}
+
+/* Post hover effect */
+.post-card-clickable:hover {
+  @apply -translate-y-0.5;
+}

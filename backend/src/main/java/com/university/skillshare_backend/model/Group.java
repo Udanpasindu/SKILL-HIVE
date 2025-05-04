@@ -2,10 +2,12 @@ package com.university.skillshare_backend.model;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.DBRef;
+
 import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.Set;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
 
 @Document(collection = "groups")
 public class Group {
@@ -15,55 +17,90 @@ public class Group {
     private String description;
     private String photoUrl;
     private String ownerId;
-    private LocalDateTime createdAt;
+    private List<String> members = new ArrayList<>();
+    private Date createdAt;
+
+    // Default constructor
+    public Group() {
+        this.members = new ArrayList<>();
+    }
     
-    @DBRef
-    private Set<User> members = new HashSet<>();
+    // Method to set creation date
+    public void setCreatedAt(LocalDateTime dateTime) {
+        this.createdAt = Date.from(dateTime.atZone(ZoneId.systemDefault()).toInstant());
+    }
+    
+    // Check if user is a member
+    public boolean hasMember(User user) {
+        return this.members.contains(user.getId());
+    }
+    
+    // Add a user as member
+    public void addMember(User user) {
+        if (!this.members.contains(user.getId())) {
+            this.members.add(user.getId());
+        }
+    }
+    
+    // Remove a user from members
+    public void removeMember(User user) {
+        this.members.remove(user.getId());
+    }
 
     // Getters and Setters
-    public String getId() { return id; }
-    public void setId(String id) { this.id = id; }
-    
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
-    
-    public String getDescription() { return description; }
-    public void setDescription(String description) { this.description = description; }
-    
-    public String getPhotoUrl() { return photoUrl; }
-    public void setPhotoUrl(String photoUrl) { this.photoUrl = photoUrl; }
-    
-    public String getOwnerId() { return ownerId; }
-    public void setOwnerId(String ownerId) { this.ownerId = ownerId; }
-    
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
-    
-    public Set<User> getMembers() {
-        return members != null ? members : new HashSet<>();
+    public String getId() {
+        return id;
     }
-    
-    public void setMembers(Set<User> members) {
-        this.members = members != null ? members : new HashSet<>();
+
+    public void setId(String id) {
+        this.id = id;
     }
-    
-    public boolean hasMember(User user) {
-        return getMembers().stream()
-            .anyMatch(member -> member.getId().equals(user.getId()));
+
+    public String getName() {
+        return name;
     }
-    
-    public void addMember(User user) {
-        if (this.members == null) {
-            this.members = new HashSet<>();
-        }
-        if (!hasMember(user)) {
-            this.members.add(user);
-        }
+
+    public void setName(String name) {
+        this.name = name;
     }
-    
-    public void removeMember(User user) {
-        if (this.members != null) {
-            this.members.removeIf(member -> member.getId().equals(user.getId()));
-        }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public String getPhotoUrl() {
+        return photoUrl;
+    }
+
+    public void setPhotoUrl(String photoUrl) {
+        this.photoUrl = photoUrl;
+    }
+
+    public String getOwnerId() {
+        return ownerId;
+    }
+
+    public void setOwnerId(String ownerId) {
+        this.ownerId = ownerId;
+    }
+
+    public List<String> getMembers() {
+        return members;
+    }
+
+    public void setMembers(List<String> members) {
+        this.members = members;
+    }
+
+    public Date getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Date createdAt) {
+        this.createdAt = createdAt;
     }
 }

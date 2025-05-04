@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
 import axios from 'axios';
+import PostCard from '../components/PostCard';
 
 const GroupPage = () => {
   const { groupId } = useParams();
@@ -16,6 +17,10 @@ const GroupPage = () => {
   });
   const [loading, setLoading] = useState(true);
   const [isMember, setIsMember] = useState(false);
+  const [sharedPosts, setSharedPosts] = useState([]);
+  const [loadingPosts, setLoadingPosts] = useState(false);
+  const [memberDetails, setMemberDetails] = useState({});
+  const [loadingMembers, setLoadingMembers] = useState(false);
 
   useEffect(() => {
     fetchGroupDetails();
@@ -23,7 +28,15 @@ const GroupPage = () => {
 
   useEffect(() => {
     if (group && currentUser) {
-      setIsMember(group.members?.some(member => member.id === currentUser.id));
+      setIsMember(group.members?.includes(currentUser.id));
+      
+      // If user is a member, fetch shared posts
+      if (group.members?.includes(currentUser.id)) {
+        fetchSharedPosts();
+      }
+      
+      // Fetch member details
+      fetchMemberDetails();
     }
   }, [group, currentUser]);
 
@@ -40,6 +53,49 @@ const GroupPage = () => {
       console.error('Error fetching group details:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchSharedPosts = async () => {
+    if (!groupId) return;
+    
+    try {
+      setLoadingPosts(true);
+      const response = await axios.get(`http://localhost:8081/api/groups/${groupId}/posts`);
+      setSharedPosts(response.data || []);
+    } catch (error) {
+      console.error('Error fetching shared posts:', error);
+    } finally {
+      setLoadingPosts(false);
+    }
+  };
+
+  // New function to fetch member details
+  const fetchMemberDetails = async () => {
+    if (!group || !group.members || group.members.length === 0) return;
+    
+    setLoadingMembers(true);
+    const details = {};
+    
+    try {
+      // Fetch details for each member in parallel
+      const promises = group.members.map(memberId => 
+        axios.get(`http://localhost:8081/api/users/${memberId}`)
+          .then(response => {
+            details[memberId] = response.data;
+          })
+          .catch(error => {
+            console.error(`Error fetching details for user ${memberId}:`, error);
+            details[memberId] = { id: memberId, username: "Unknown" };
+          })
+      );
+      
+      await Promise.all(promises);
+      setMemberDetails(details);
+    } catch (error) {
+      console.error('Error fetching member details:', error);
+    } finally {
+      setLoadingMembers(false);
     }
   };
 
@@ -79,9 +135,11 @@ const GroupPage = () => {
       if (isMember) {
         await axios.post(`http://localhost:8081/api/groups/${groupId}/leave?userId=${currentUser.id}`);
         setIsMember(false);
+        setSharedPosts([]); // Clear posts when leaving
       } else {
         await axios.post(`http://localhost:8081/api/groups/${groupId}/join?userId=${currentUser.id}`);
         setIsMember(true);
+        fetchSharedPosts(); // Fetch posts when joining
       }
       // Refresh group details to get updated member list
       await fetchGroupDetails();
@@ -113,7 +171,7 @@ const GroupPage = () => {
 
   return (
     <div className="container mx-auto max-w-4xl px-4 py-8">
-      <div className="bg-white shadow-lg rounded-lg overflow-hidden">
+      <div className="bg-white shadow-lg rounded-lg overflow-hidden mb-8">
         <div className="relative h-64">
           <img 
             src={group.photoUrl || '/default-group-cover.jpg'} 
@@ -204,27 +262,65 @@ const GroupPage = () => {
             {/* Members section */}
             <div className="mt-8">
               <h2 className="text-xl font-semibold mb-4">Members ({(group.members || []).length})</h2>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {(group.members || []).map(member => (
-                  <div key={member.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center">
-                        {member.username ? member.username[0].toUpperCase() : '?'}
+              {loadingMembers ? (
+                <div className="text-center py-4">
+                  <div className="inline-block animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-indigo-500"></div>
+                  <p className="mt-2 text-sm text-gray-600">Loading members...</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {(group.members || []).map(memberId => {
+                    const member = memberDetails[memberId] || { id: memberId, username: "Loading..." };
+                    return (
+                      <div key={memberId} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center">
+                            {member.username ? member.username[0].toUpperCase() : '?'}
+                          </div>
+                          <span>{member.username}</span>
+                        </div>
+                        {isOwner && memberId !== currentUser.id && (
+                          <button
+                            onClick={() => handleRemoveMember(memberId)}
+                            className="text-red-600 hover:text-red-800 text-sm"
+                          >
+                            Remove
+                          </button>
+                        )}
                       </div>
-                      <span>{member.username}</span>
-                    </div>
-                    {isOwner && member.id !== currentUser.id && (
-                      <button
-                        onClick={() => handleRemoveMember(member.id)}
-                        className="text-red-600 hover:text-red-800 text-sm"
-                      >
-                        Remove
-                      </button>
-                    )}
-                  </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        
+        {/* Group shared posts section */}
+        {isMember && (
+          <div className="mt-8 px-6 pb-6">
+            <h2 className="text-xl font-semibold mb-4">Shared Posts</h2>
+            
+            {loadingPosts ? (
+              <div className="text-center py-8">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-500"></div>
+                <p className="mt-2 text-gray-600">Loading shared posts...</p>
+              </div>
+            ) : sharedPosts.length > 0 ? (
+              <div className="space-y-6">
+                {sharedPosts.map(post => (
+                  <PostCard
+                    key={post.id}
+                    post={post}
+                    userId={currentUser?.id}
+                  />
                 ))}
               </div>
-            </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <p>No posts have been shared in this group yet.</p>
+              </div>
+            )}
           </div>
         )}
       </div>

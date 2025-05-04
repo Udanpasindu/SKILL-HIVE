@@ -11,15 +11,18 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
-    public void configureMessageBroker(MessageBrokerRegistry config) {
-        config.enableSimpleBroker("/queue", "/topic");
-        config.setApplicationDestinationPrefixes("/app");
+    public void configureMessageBroker(MessageBrokerRegistry registry) {
+        registry.enableSimpleBroker("/topic", "/queue");
+        registry.setApplicationDestinationPrefixes("/app");
     }
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
+        // Modified to properly configure CORS with credentials
         registry.addEndpoint("/ws")
-            .setAllowedOriginPatterns("*")
-            .withSockJS();
+                .setAllowedOrigins("http://localhost:5174") // Use specific origin instead of "*"
+                .withSockJS()
+                .setClientLibraryUrl("https://cdn.jsdelivr.net/npm/sockjs-client@1.6.1/dist/sockjs.min.js") // Use consistent SockJS version
+                .setSessionCookieNeeded(true); // Enable cookies/credentials
     }
 }

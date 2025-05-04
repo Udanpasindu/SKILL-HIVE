@@ -4,6 +4,7 @@ import { useUser } from '../contexts/UserContext';
 import { useNavigate } from 'react-router-dom';
 import SockJS from 'sockjs-client';
 import Stomp from 'stompjs';
+import { formatRelativeTime } from '../utils/dateUtils';
 
 const NotificationBell = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -30,9 +31,15 @@ const NotificationBell = () => {
   // Setup WebSocket connection
   useEffect(() => {
     if (currentUser) {
-      const socket = new SockJS('http://localhost:8081/ws');
+      // Configure SockJS to use credentials
+      const socket = new SockJS('http://localhost:8081/ws', null, {
+        transports: ['websocket', 'xhr-streaming', 'xhr-polling'],
+        withCredentials: true
+      });
+      
       const stompClient = Stomp.over(socket);
       
+      // Disable debug logs in production
       stompClient.debug = null;
       
       const onConnect = () => {
@@ -91,10 +98,15 @@ const NotificationBell = () => {
     
     setLoading(true);
     try {
-      const response = await axios.get(`http://localhost:8081/api/notifications/user/${currentUser.id}`);
+      const response = await axios.get(`http://localhost:8081/api/notifications/user/${currentUser.id}`, {
+        headers: { 'Content-Type': 'application/json' },
+        withCredentials: false
+      });
       setNotifications(response.data || []);
     } catch (error) {
       console.error('Error fetching notifications:', error);
+      // Don't show error UI, just use empty array
+      setNotifications([]);
     } finally {
       setLoading(false);
     }
@@ -104,10 +116,18 @@ const NotificationBell = () => {
     if (!currentUser) return;
     
     try {
-      const response = await axios.get(`http://localhost:8081/api/notifications/user/${currentUser.id}/unread/count`);
-      setUnreadCount(response.data.count);
+      const response = await axios.get(
+        `http://localhost:8081/api/notifications/user/${currentUser.id}/unread/count`,
+        {
+          headers: { 'Content-Type': 'application/json' },
+          withCredentials: false
+        }
+      );
+      setUnreadCount(response.data || 0);
     } catch (error) {
       console.error('Error fetching unread count:', error);
+      // Default to zero if there's an error
+      setUnreadCount(0);
     }
   };
 
@@ -199,18 +219,7 @@ const NotificationBell = () => {
   };
 
   const formatTimeAgo = (dateString) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now - date;
-    const diffSecs = Math.round(diffMs / 1000);
-    const diffMins = Math.round(diffSecs / 60);
-    const diffHours = Math.round(diffMins / 60);
-    const diffDays = Math.round(diffHours / 24);
-    
-    if (diffSecs < 60) return `${diffSecs} sec ago`;
-    if (diffMins < 60) return `${diffMins} min ago`;
-    if (diffHours < 24) return `${diffHours} hours ago`;
-    return `${diffDays} days ago`;
+    return formatRelativeTime(dateString);
   };
 
   const getNotificationColor = (type) => {
