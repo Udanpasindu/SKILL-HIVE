@@ -31,9 +31,15 @@ const NotificationBell = () => {
   // Setup WebSocket connection
   useEffect(() => {
     if (currentUser) {
-      const socket = new SockJS('http://localhost:8081/ws');
+      // Configure SockJS to use credentials
+      const socket = new SockJS('http://localhost:8081/ws', null, {
+        transports: ['websocket', 'xhr-streaming', 'xhr-polling'],
+        withCredentials: true
+      });
+      
       const stompClient = Stomp.over(socket);
       
+      // Disable debug logs in production
       stompClient.debug = null;
       
       const onConnect = () => {

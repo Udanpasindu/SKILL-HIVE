@@ -1,3 +1,15 @@
+import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { getUser, editPost, deletePost, getReactions } from '../services/api';
+import useWebSocket from '../hooks/useWebSocket';
+import Reactions from './Reactions';
+import CommentForm from './CommentForm';
+import CommentList from './CommentList';
+import FollowButton from './FollowButton';
+import ShareModal from './ShareModal';
+import { formatDate } from '../utils/dateUtils';
+import Comments from './Comments';
+
 const PostCard = ({ post, userId, detailed = false, onDelete }) => {
   const [authorName, setAuthorName] = useState('');
   const [showComments, setShowComments] = useState(detailed);
@@ -205,6 +217,16 @@ const PostCard = ({ post, userId, detailed = false, onDelete }) => {
     setNewVideo(file);
   };
 
+  const getImageUrl = (imageUrl) => {
+    if (!imageUrl) return 'https://via.placeholder.com/800x400?text=Image+Not+Available';
+    
+    if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+      return imageUrl;
+    }
+    
+    return `http://localhost:8081${imageUrl}`;
+  };
+
   return (
     <div
       className={`bg-white rounded-lg shadow-md p-4 mb-4 ${!detailed ? 'cursor-pointer hover:shadow-lg transition-shadow duration-200' : ''}`}
@@ -317,21 +339,32 @@ const PostCard = ({ post, userId, detailed = false, onDelete }) => {
       {hasMedia() && (
         <div className="relative">
           {post.imageUrls && post.imageUrls.length > 0 && (
-            <div className="mb-4">
+            <div className="mb-4 relative">
               <button
-                onClick={prevImage}
-                className="absolute top-1/2 left-0 transform -translate-y-1/2 text-white bg-black bg-opacity-50 p-2 rounded-full"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  prevImage();
+                }}
+                className="absolute top-1/2 left-0 transform -translate-y-1/2 text-white bg-black bg-opacity-50 p-2 rounded-full z-10"
               >
                 &#8249;
               </button>
               <img
-                src={post.imageUrls[currentImageIndex]}
+                src={getImageUrl(post.imageUrls[currentImageIndex])}
                 alt={`Post Image ${currentImageIndex + 1}`}
                 className="w-full h-60 object-cover rounded-lg"
+                onError={(e) => {
+                  console.error('Image failed to load:', e.target.src);
+                  e.target.onerror = null;
+                  e.target.src = 'https://via.placeholder.com/800x400?text=Image+Not+Available';
+                }}
               />
               <button
-                onClick={nextImage}
-                className="absolute top-1/2 right-0 transform -translate-y-1/2 text-white bg-black bg-opacity-50 p-2 rounded-full"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  nextImage();
+                }}
+                className="absolute top-1/2 right-0 transform -translate-y-1/2 text-white bg-black bg-opacity-50 p-2 rounded-full z-10"
               >
                 &#8250;
               </button>
@@ -360,20 +393,47 @@ const PostCard = ({ post, userId, detailed = false, onDelete }) => {
       <div className="flex gap-3 items-center">
         <button
           className="text-sm text-gray-500 hover:text-gray-700"
-          onClick={toggleComments}
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleComments();
+          }}
         >
           {showComments ? 'Hide Comments' : 'Show Comments'}
         </button>
         <button
           className="text-sm text-gray-500 hover:text-gray-700"
-          onClick={() => setShowShareModal(true)}
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowShareModal(true);
+          }}
         >
           Share Post
         </button>
       </div>
 
-      {showComments && <CommentList comments={wsComments} postId={post.id} ref={commentListRef} />}
-      {showShareModal && <ShareModal post={post} onClose={() => setShowShareModal(false)} />}
+      {showComments && (
+        <div onClick={e => e.stopPropagation()}>
+          <Comments 
+            postId={post.id}
+            userId={userId}
+            postOwnerId={post.userId} 
+            initialComments={post.comments || []}
+          />
+        </div>
+      )}
+      
+      {showShareModal && (
+        <div onClick={e => e.stopPropagation()}>
+          <ShareModal 
+            postId={post.id} 
+            userId={userId} 
+            onClose={() => setShowShareModal(false)} 
+            onSuccess={() => setShowShareModal(false)}
+          />
+        </div>
+      )}
     </div>
   );
 };
+
+export default PostCard;

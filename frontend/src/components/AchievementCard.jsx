@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { getUser } from '../services/api';
+import axios from 'axios'; // Use axios directly instead of getUser
 import { useUser } from '../contexts/UserContext';
 import AchievementForm from './AchievementForm';
-import axios from 'axios';
 
 const AchievementCard = ({ achievement, onDelete, onUpdate, simplified = false }) => {
   const [authorName, setAuthorName] = useState('');
@@ -15,7 +14,9 @@ const AchievementCard = ({ achievement, onDelete, onUpdate, simplified = false }
   useEffect(() => {
     const fetchAuthor = async () => {
       try {
-        const userData = await getUser(achievement.userId);
+        // Direct axios call instead of using getUser
+        const response = await axios.get(`http://localhost:8081/api/users/${achievement.userId}`);
+        const userData = response.data;
         setAuthorName(userData.fullName || userData.username);
       } catch (error) {
         console.error('Error fetching achievement author:', error);

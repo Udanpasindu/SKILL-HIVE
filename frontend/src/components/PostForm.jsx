@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { createPost, getUser } from '../services/api';
+import { createPost } from '../services/api'; // Updated import without getUser
 import { useUser } from '../contexts/UserContext';
 import axios from 'axios';
 

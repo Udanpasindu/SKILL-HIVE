@@ -14,17 +14,23 @@ public class CorsConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         CorsConfiguration config = new CorsConfiguration();
         
-        // Allow all origins for development - restrict in production
-        config.addAllowedOriginPattern("*");
+        // Allow frontend origin
+        config.addAllowedOrigin("http://localhost:5173"); // Vite default port
+        config.addAllowedOrigin("http://localhost:3000"); // Alternative development port
+        config.addAllowedOriginPattern("*"); // For development convenience
         
         // Allow specific HTTP methods
-        config.addAllowedMethod("*");
+        config.addAllowedMethod("GET");
+        config.addAllowedMethod("POST");
+        config.addAllowedMethod("PUT");
+        config.addAllowedMethod("DELETE");
+        config.addAllowedMethod("OPTIONS");
         
         // Allow all headers
         config.addAllowedHeader("*");
         
-        // Allow credentials (cookies, authorization headers, etc)
-        config.setAllowCredentials(true);
+        // Don't allow credentials for now to avoid CORS preflight issues
+        config.setAllowCredentials(false);
         
         // Apply this configuration to all paths
         source.registerCorsConfiguration("/**", config);
