@@ -1,12 +1,11 @@
 import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { getComments } from '../services/api';
 import CommentItem from './CommentItem';
-import useWebSocket from '../hooks/useWebSocket';
 
 const CommentList = forwardRef(({ postId, userId, postOwnerId, initialComments = [] }, ref) => {
   const [loading, setLoading] = useState(false);
   const [lastAddedCommentId, setLastAddedCommentId] = useState(null);
-  const { comments, setComments } = useWebSocket(postId, initialComments);
+  const [comments, setComments] = useState(initialComments); // Use initialComments directly
   const [animatingOutId, setAnimatingOutId] = useState(null);
 
   // Expose methods to parent component
@@ -40,8 +39,11 @@ const CommentList = forwardRef(({ postId, userId, postOwnerId, initialComments =
       }
     };
     
-    fetchComments();
-  }, [postId]);
+    // Only fetch if no initial comments provided or force refresh
+    if (initialComments.length === 0) {
+      fetchComments();
+    }
+  }, [postId, initialComments.length]);
 
   // Handle comment deletion with animation
   const handleDelete = (commentId) => {

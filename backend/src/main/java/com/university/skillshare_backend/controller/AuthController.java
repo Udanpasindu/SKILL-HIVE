@@ -11,21 +11,27 @@ import com.university.skillshare_backend.dto.RegisterRequest;
 import com.university.skillshare_backend.model.User;
 import com.university.skillshare_backend.repository.UserRepository;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/auth")
+@CrossOrigin(origins = "*")
 public class AuthController {
 
+    private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
     private final UserRepository userRepository;
     private final BCryptPasswordEncoder passwordEncoder;
     
     @Autowired
-    public AuthController(UserRepository userRepository) {
+    public AuthController(UserRepository userRepository, BCryptPasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
-        this.passwordEncoder = new BCryptPasswordEncoder();
+        this.passwordEncoder = passwordEncoder; // Use the injected bean
     }
     
     @PostMapping("/register")
@@ -61,17 +67,33 @@ public class AuthController {
     
     @PostMapping("/login")
     public ResponseEntity<?> loginUser(@RequestBody LoginRequest loginRequest) {
+        logger.info("Login attempt for user: {}", loginRequest.getUsername());
+        
+        // List all users for debugging (remove in production)
+        List<User> allUsers = userRepository.findAll();
+        logger.info("Total users in database: {}", allUsers.size());
+        for (User user : allUsers) {
+            logger.info("User in DB: {}", user.getUsername());
+        }
+        
         Optional<User> userOptional;
         
         // Check if login is with email or username
         if (loginRequest.getUsername().contains("@")) {
-            userOptional = userRepository.findByEmail(loginRequest.getUsername());
+            // Email lookups are typically case-insensitive
+            userOptional = userRepository.findByEmailIgnoreCase(loginRequest.getUsername());
+            logger.info("Looking up by email: {}, found: {}", 
+                       loginRequest.getUsername(), userOptional.isPresent());
         } else {
-            userOptional = userRepository.findByUsername(loginRequest.getUsername());
+            // Make username lookup case-insensitive
+            userOptional = userRepository.findByUsernameIgnoreCase(loginRequest.getUsername());
+            logger.info("Looking up by username: {}, found: {}", 
+                       loginRequest.getUsername(), userOptional.isPresent());
         }
         
         // Check if user exists
         if (userOptional.isEmpty()) {
+            logger.warn("Login failed: user not found - {}", loginRequest.getUsername());
             Map<String, String> response = new HashMap<>();
             response.put("error", "Invalid username/email or password");
             return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
@@ -80,11 +102,17 @@ public class AuthController {
         User user = userOptional.get();
         
         // Check password
-        if (!passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
+        boolean passwordMatches = passwordEncoder.matches(loginRequest.getPassword(), user.getPassword());
+        logger.info("Password check for user {}: {}", loginRequest.getUsername(), passwordMatches ? "success" : "failed");
+        
+        if (!passwordMatches) {
+            logger.warn("Login failed: invalid password for user - {}", loginRequest.getUsername());
             Map<String, String> response = new HashMap<>();
             response.put("error", "Invalid username/email or password");
             return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
         }
+        
+        logger.info("Login successful for user: {}", loginRequest.getUsername());
         
         // Hide password in response
         user.setPassword(null);
