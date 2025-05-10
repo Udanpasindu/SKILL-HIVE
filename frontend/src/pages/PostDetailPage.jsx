@@ -87,11 +87,26 @@ const PostDetailPage = () => {
   
   return (
     <div className="max-w-2xl mx-auto mt-8 p-4">
-      <Link to="/" className="text-blue-500 mb-4 inline-block">
-        &larr; Back to Home
+      <Link to="/" className="text-blue-500 mb-4 inline-block hover:underline flex items-center">
+        <span className="material-icons mr-1 text-sm">arrow_back</span>
+        Back to Home
       </Link>
       
       <PostCard post={post} userId={currentUser?.id} detailed={true} />
+      
+      {/* Additional comment information for better UX */}
+      {!currentUser && post?.comments && post.comments.length > 0 && (
+        <div className="mt-4 bg-blue-50 p-4 rounded-lg border border-blue-100">
+          <p className="text-blue-700">
+            <span className="font-medium">Sign in to join the conversation!</span> 
+            <br />
+            This post has {post.comments.length} comment{post.comments.length !== 1 ? 's' : ''}.
+          </p>
+          <Link to="/login" className="mt-2 inline-block text-white bg-blue-600 px-4 py-2 rounded hover:bg-blue-700">
+            Sign in
+          </Link>
+        </div>
+      )}
     </div>
   );
 };

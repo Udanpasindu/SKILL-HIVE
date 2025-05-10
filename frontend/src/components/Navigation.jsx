@@ -20,11 +20,15 @@ const Navigation = () => {
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center">
             <Link to="/" className="flex-shrink-0">
-              <h1 className="text-xl font-bold text-indigo-600 dark:text-indigo-400">SKILLHIVE  </h1>
+              <h1 className="text-xl font-bold text-indigo-600 dark:text-indigo-400">SKILLHIVE</h1>
             </Link>
             <div className="hidden md:block">
               <div className="ml-10 flex items-baseline space-x-4">
                 <Link to="/" className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">Home</Link>
+                {currentUser && (
+                  <Link to="/achievements" className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">Achievements</Link>
+                )}
+                <Link to="/groups" className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">Groups</Link>
               </div>
             </div>
           </div>
@@ -34,6 +38,7 @@ const Navigation = () => {
             
             {currentUser ? (
               <>
+                {currentUser && <NotificationBell />}
                 <Link to="/notifications" className="text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 px-3 py-2 rounded-md text-sm font-medium">
                   Notifications
                 </Link>
@@ -44,7 +49,7 @@ const Navigation = () => {
                   {currentUser.username}
                 </div>
                 <button
-                  onClick={logout}
+                  onClick={handleLogout}
                   className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-md text-sm font-medium"
                 >
                   Logout

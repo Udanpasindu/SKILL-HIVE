@@ -86,9 +86,16 @@ public class NotificationController {
      */
     @DeleteMapping("/{notificationId}")
     public ResponseEntity<Map<String, String>> deleteNotification(@PathVariable String notificationId) {
-        notificationService.deleteNotification(notificationId);
-        Map<String, String> response = new HashMap<>();
-        response.put("message", "Notification deleted successfully");
-        return ResponseEntity.ok(response);
+        try {
+            notificationService.deleteNotification(notificationId);
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "Notification deleted successfully");
+            response.put("notificationId", notificationId);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("error", "Failed to delete notification: " + e.getMessage());
+            return ResponseEntity.badRequest().body(errorResponse);
+        }
     }
 }

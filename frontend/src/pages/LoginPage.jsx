@@ -3,35 +3,54 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useUser } from '../contexts/UserContext';
 
 const LoginPage = () => {
-  const [formData, setFormData] = useState({
-    username: '',
-    password: '',
-  });
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useUser();
   const navigate = useNavigate();
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value } = e.target;
+    if (name === 'username') {
+      setUsername(value);
+    } else if (name === 'password') {
+      setPassword(value);
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsLoading(true);
     setError('');
-
-    const result = await login(formData);
+    setIsLoading(true);
     
-    setIsLoading(false);
-    
-    if (result.success) {
+    try {
+      if (!username || !password) {
+        throw new Error('Please enter both username and password');
+      }
+      
+      console.log('Attempting login with credentials:', username);
+      await login(username, password);
       navigate('/');
-    } else {
-      setError(result.error);
+    } catch (error) {
+      console.error('Login failed:', error);
+      
+      // Show more detailed error messages
+      if (error.message.includes('Invalid username/email or password')) {
+        const enteredUsername = username.toLowerCase();
+        
+        // Check if it looks like a case sensitivity issue
+        if (["testuser", "akila320", "yeharad"].some(user => 
+            user.toLowerCase() === enteredUsername && user !== username)) {
+          setError(`Username might be case-sensitive. Did you mean one of the test users?`);
+        } else {
+          setError('Invalid username/email or password. Please try the test credentials listed above.');
+        }
+      } else {
+        setError(error.message || 'Login failed. Please try again.');
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -40,8 +59,21 @@ const LoginPage = () => {
       <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md">
         <h2 className="text-3xl font-bold text-center mb-6 text-indigo-700">Welcome Back</h2>
         
+        {/* Test credentials banner */}
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 text-blue-700 rounded">
+          <p className="font-medium">Test Credentials:</p>
+          <ul className="list-disc pl-5 mt-1">
+            <li>Username: <span className="font-mono">testuser</span>, Password: <span className="font-mono">password123</span></li>
+            <li>Username: <span className="font-mono">akila320</span>, Password: <span className="font-mono">password123</span></li>
+            <li>Username: <span className="font-mono">yeharad</span>, Password: <span className="font-mono">password123</span></li>
+          </ul>
+          <div className="mt-2 text-sm">
+            <p><strong>Note:</strong> Usernames are case-sensitive. Use exactly as shown above.</p>
+          </div>
+        </div>
+        
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          <div className="whitespace-pre-line bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
             {error}
           </div>
         )}
@@ -56,7 +88,7 @@ const LoginPage = () => {
               id="username"
               name="username"
               type="text"
-              value={formData.username}
+              value={username}
               onChange={handleChange}
               required
               placeholder="Enter your username or email"
@@ -72,7 +104,7 @@ const LoginPage = () => {
               id="password"
               name="password"
               type="password"
-              value={formData.password}
+              value={password}
               onChange={handleChange}
               required
               placeholder="Enter your password"

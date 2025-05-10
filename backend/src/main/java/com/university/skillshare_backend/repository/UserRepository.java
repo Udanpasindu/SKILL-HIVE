@@ -19,4 +19,10 @@ public interface UserRepository extends MongoRepository<User, String> {
     
     // Find users by username containing the given string (for mention suggestions)
     List<User> findByUsernameContaining(String usernameFragment);
+    
+    // Find a user by username (case-insensitive)
+    Optional<User> findByUsernameIgnoreCase(String username);
+    
+    // Find a user by email (case-insensitive)
+    Optional<User> findByEmailIgnoreCase(String email);
 }

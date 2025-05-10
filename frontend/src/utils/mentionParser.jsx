@@ -23,11 +23,11 @@ export const parseMentions = (text) => {
       parts.push(text.substring(lastIndex, match.index));
     }
     
-    // Add the styled mention with animation
+    // Add the styled mention with dark theme animation
     parts.push(
       <span 
         key={match.index} 
-        className="inline-block text-blue-600 font-medium bg-blue-50 rounded px-1 py-0.5 hover:bg-blue-100 transition-colors duration-200"
+        className="inline-block text-white font-medium bg-gray-800 dark:bg-gray-700 rounded px-1 py-0.5 hover:bg-gray-700 dark:hover:bg-gray-600 transition-colors duration-200"
       >
         @{match[1]}
       </span>
